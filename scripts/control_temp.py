@@ -92,13 +92,13 @@ def get_temp(devicefile):
 parser = argparse.ArgumentParser(description='Simple Temperature Controller.')
 parser.add_argument('setpoint', type=str,
   help='Setpoint Temperature (C) or path to file containing setpoint')
-parser.add_argument('--hysteresis', '-t', type=float, default=0.1, metavar='FLOAT(C)',
+parser.add_argument('--hysteresis', '-t', type=float, default=0.1, metavar='FLOAT',
   help='Hystersis between switch-off and switch on (C) - default: 0.1')
 parser.add_argument('--cooler', '-c', action='store_true',
   help='By default assume controlling heater - set this flag for cooler (invert output / move hysteresis above setpoint)')
-parser.add_argument('--sensorid', '-s', type=str, nargs='+', metavar='STRING(S)',
+parser.add_argument('--sensorid', '-s', type=str, nargs='+', metavar='STRING',
   help='1-wire temperature sensor ID e.g. "28-xxxx" (default: first of /sys/bus/w1/devices/28-*/w1_slave detected) - NOTE if multiple temperature sensors specified, first sensor in list will be used for control')
-parser.add_argument('--label', '-n', type=str, nargs='+', metavar='STRING(S)',
+parser.add_argument('--label', '-n', type=str, nargs='+', metavar='STRING',
   help='Channel label/name prefix for temperature sensor(s) in log header - default: "Current"')
 parser.add_argument('--gpioout', '-g', type=int, default=17, metavar='GPIO',
   help='GPIO pin for output heating demand signal - default: GPIO17 / Pin 11 (integer)')
@@ -113,7 +113,6 @@ parser.add_argument('--interval', '-i', type=float, metavar='SECONDS',
 parser.add_argument('--verbose', '-v', action='store_true',
   help='Verbose mode - if this flag is set additional messages of control process sent to STDOUT - useful for debugging')
 args = parser.parse_args()
-# *** check all have correct datatype validation and defaults;
 
 # Check input argumants, set defaults where necessaru and validate
 setarg = args.setpoint
@@ -134,7 +133,6 @@ else:
   # Find list of /sys/bus/w1/devices/28-*/w1_slave and select first
   sensor_list = glob.glob('/sys/devices/w1_bus_master1/28*/w1_slave')
   temp_sensors = [sensor_list[0].split('/')[4]]
-# *** note temp sensor on heating controller is 28-0000050399c6
 
 if args.label:
   temp_labels = args.label
@@ -150,19 +148,15 @@ if len(temp_labels) != len(temp_sensors):
 
 gpio_output = args.gpioout
 
-# ***note wiringpi gpio3 on heating controller is gpio22
 if args.gpiofeedback:
   gpio_feedback = args.gpiofeedback
 else:
   gpio_feedback = gpio_output
 
-# *** Note logfile on heating controller /var/log/xrf_modules/xrf_poll_cont.log
 logfile_fullpath = args.logfile
 
 cycle_interval = args.interval
 
-# *** DEBUG
-print(args)
 verbose_print("Setpoint: "+str(setpoint)+"  Hysteresis: "+str(hysteresis)+"  Temperature sensor(s): "+','.join(temp_sensors)+"  Channel label(s): "+','.join(temp_labels))
 
 # Prepare CSV file header for data log
@@ -201,17 +195,23 @@ while True:
   # Compare temperature with setpoint, set heating demand signal accordingly
   # Note switch on below setpoint and off at setpoint works best for most heater controllers, since reaction to demand on tends to be faster than off
   verbose_print("Comparing measured temperature and setpoint")
-  above = (current_temp + hysteresis) < setpoint
-  below = current_temp  > setpoint
+  if args.cooler:
+    # For cooler, switch on at hysteresis above setpoint and off at setpoint
+    above = (current_temp - hysteresis) > setpoint
+    below = current_temp < setpoint
+  else:
+    # For heater, switch on hysteresis below setpoint and off at setpoint
+    above = (current_temp + hysteresis) < setpoint
+    below = current_temp > setpoint
   status = get_gpio(gpio_output)
   if above:
-    verbose_print("Heating required, checking if system is on")
+    verbose_print("Demand required, checking if system is on")
     if status == 0:
       print("%s: Setpoint=%s, Actual=%s - Switching system on" % (strftime("%Y-%m-%d-%H:%M:%S", gmtime()), setpoint, current_temp))
       set_gpio(gpio_output,"1")
       status = 1
   elif below:
-    verbose_print("Heating not required, checking if system is on")
+    verbose_print("Demand not required, checking if system is on")
     if status == 1:
       print("%s: Setpoint=%s, Actual=%s - Switching system off" % (strftime("%Y-%m-%d-%H:%M:%S", gmtime()), setpoint, current_temp))
       set_gpio(gpio_output,"0")
@@ -225,7 +225,7 @@ while True:
   actual_status = get_gpio(gpio_feedback)
 
   if actual_status != status:
-    print("ERROR: Requested demand status "+str(status)+" but actual status "+str(actual_status)+" - failed to set demand signal!")
+    format_print("ERROR: Requested demand status "+str(status)+" but actual status "+str(actual_status)+" - failed to set demand signal!")
 
   # Write temperature, setpoint and actual status to log - Note all all timestamps in UTC
   with open(logfile_fullpath,"a") as f:
@@ -244,8 +244,6 @@ while True:
   else:
     break
 
-#   check all ***
-#   Implement --cooler - invert logic, swsp hysteresis
-#   move all DEBUG lines to verbose_print, and all other lines to format_print
+#   check all inputs have correct datatype validation and defaults
 #   document outputs - log for controller_analyse (STDOUT), errors/warning (STDOUT), temperature to Excel-friendly CSV (or optional legacy message log for backwards compat)
 #   testing including ALL input argument combinations (set/not set/multiple/etc) to ensure correct state set (log analysis), data logged(CSV), excel plots, multi channel, clean reboot, fresh image, etc
