@@ -247,6 +247,8 @@ while True:
 
   # Read back demand signal - if spare relay contacts (DP), can test here if relay has actually switched
   # Else if additional GPIO for feedback not specified, check status of GPIO output matches demand
+  sleep(0.1)
+  # Need to allow time for mechanical relay to switch (if in use)
   actual_status = get_gpio(gpio_feedback)
 
   if actual_status != status:
