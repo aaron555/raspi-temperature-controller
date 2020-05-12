@@ -1,24 +1,29 @@
 #!/usr/bin/env python3
 
-# Simple binary temperature controller with configurable hysterisis and control and data loggins
+# Simple binary temperature controller for Raspberry Pi with configurable hysteresis and logging of control and data
 
 # INPUTS:
-# <Setpoint> must be specified - may be either a value or a string containing path to a file containing the required value
+# <Setpoint> must be specified - may be either a Temperature in (C) or a string containing path to a file containing this value
 # All other input arguments are optional
 # ./control_temp.py -h for a list of supported input arguments
 
-# OUTPUTS: Demand signal to GPIO; Summary of system status and any change in status to STDOUT; timestamped logfile with setpoint, measured temperature and status
+# OUTPUTS:
+# Demand signal set on selected GPIO pin
+# All changes in status with inputs to STDOUT. This can be stored in log and analysed with controller_analyse.py to create daily plots of demand/stats
+# (STDOUT messages are tagged with WARNING:/ERROR: for non-critical/critical exceptions respectively, and DEBUG: for additional messages in --verbose mode)
+# Timestamped logfile with setpoint, measured temperature and status.  Default is Excel friendly CSV.  Includes all measured temperatures, and optionally user specified channel labels in header
 
-# EXAMPLE CALL
+# EXAMPLE CALLS
 # ./control_temp.py 27 >> /home/aaron/control_temp.log
+# ./control_temp.py setpoint --verbose --logfile mylog.csv -s 28-0300a2796e9e 28-0300a279f011 -n "Channel 1" "Channel 2" -i 10 -t 0.2
 
-# NOTE if multiple temperature sensors (--sensorid) are specified, the first sensor in the list will always be used for control, the others will just be read and logged
+# NOTE if multiple temperature sensors (--sensorid) are specified, the first sensor in the list will always be used for control, but all will be read and logged
 # If labels (--label) are also specified, the number of labels specified must match the number of sensors (--sensorid)
-# For multi-channel temperature control, run a separate instance of this script for each channel, specifying appropriate temperature sensor input and GPIO output, logfile (optionally channel name) for each
+# For multi-channel temperature control (multiple outputs), run a separate instance of this script for each channel, specifying appropriate temperature sensor input and GPIO output, logfile (optionally channel name) for each
 
 # Changelog
 # 04/11/4014 - First Version
-# 05/2020 - Removed hard-coded inputs and changed to arguments, changed default logging to CSV, added python3 compatibility, added optional continuous mode with configurable cycle interval
+# 05/2020 - Removed hard-coded inputs and changed to arguments, changed default logging to CSV, added python3 compatibility, added optional continuous mode with configurable cycle interval, added support for multiple temperature sensors, added support for coolers
 
 # Copyright (C) 2014, 2020 Aaron Lockton
 
@@ -44,7 +49,10 @@ def configure_gpio(gpionum,direction):
   # Export GPIO to allow it to be used
   if not os.path.exists('/sys/class/gpio/gpio'+gpionum+'/'):
     verbose_print("GPIO "+gpionum+" is not configured - exporting")
-    os.system('echo '+gpionum+' > /sys/class/gpio/export')
+    export_status = os.WEXITSTATUS(os.system('echo '+gpionum+' > /sys/class/gpio/export 2>/dev/null'))
+    if export_status != 0:
+      format_print("ERROR: Cannot configure GPIO "+gpionum+" is this a valid GPIO number?")
+      sys.exit(1)
   # Set GPIO direction
   with open('/sys/class/gpio/gpio'+gpionum+'/direction', 'r') as f:
     current_direction = f.readline().rstrip()
@@ -53,7 +61,10 @@ def configure_gpio(gpionum,direction):
     # If direction is not correct, may have only just been exported, need delay to prevent failure due to first-run permissions issue in Raspbian
     sleep(1)
     verbose_print("Setting GPIO "+gpionum+" direction to "+direction)
-    os.system('echo '+direction+' > /sys/class/gpio/gpio'+gpionum+'/direction')
+    direction_status = os.WEXITSTATUS(os.system('echo '+direction+' > /sys/class/gpio/gpio'+gpionum+'/direction 2>/dev/null'))
+    if direction_status != 0:
+      format_print("ERROR: Cannot set direction of GPIO "+gpionum)
+      sys.exit(1)
 
 # Read GPIO value from specified GPIO
 def get_gpio(gpionum):
@@ -92,39 +103,46 @@ def get_temp(devicefile):
 parser = argparse.ArgumentParser(description='Simple Temperature Controller.')
 parser.add_argument('setpoint', type=str,
   help='Setpoint Temperature (C) or path to file containing setpoint')
-parser.add_argument('--hysteresis', '-t', type=float, default=0.1, metavar='FLOAT',
+parser.add_argument('--hysteresis', '-t', type=float, default=0.1, metavar='TEMPERATURE',
   help='Hystersis between switch-off and switch on (C) - default: 0.1')
 parser.add_argument('--cooler', '-c', action='store_true',
   help='By default assume controlling heater - set this flag for cooler (invert output / move hysteresis above setpoint)')
 parser.add_argument('--sensorid', '-s', type=str, nargs='+', metavar='STRING',
-  help='1-wire temperature sensor ID e.g. "28-xxxx" (default: first of /sys/bus/w1/devices/28-*/w1_slave detected) - NOTE if multiple temperature sensors specified, first sensor in list will be used for control')
+  help='1-wire temperature sensor ID(s) e.g. "28-xxxx" (default: first of /sys/bus/w1/devices/28-*/w1_slave detected) - NOTE if multiple temperature sensors specified, first sensor in list will be used for control')
 parser.add_argument('--label', '-n', type=str, nargs='+', metavar='STRING',
-  help='Channel label/name prefix for temperature sensor(s) in log header - default: "Current"')
+  help='Channel label(s)/name(s) used as prefix in data log header column header(s) - default: "Current"')
 parser.add_argument('--gpioout', '-g', type=int, default=17, metavar='GPIO',
-  help='GPIO pin for output heating demand signal - default: GPIO17 / Pin 11 (integer)')
+  help='GPIO pin for output demand signal - default: GPIO17 / Pin 11 (integer)')
 parser.add_argument('--gpiofeedback', '-f', type=int, metavar='GPIO',
-  help='GPIO pin for feedback signal from heater - default same as --gpioout (integer)')
+  help='GPIO pin for optional feedback signal from relay or system under control - default same as --gpioout (integer)')
 parser.add_argument('--logfile', '-l', type=str, metavar='FILENAME', default="temperature_data.csv",
   help='Full path and filename of output logfile for temperature and setpoint data - default: "temperature_data.csv" (string)')
 parser.add_argument('--legacylog', '-y', action='store_true',
-  help='Legacy logging mode - if this flag is set uses legacy logfile format instead of default: Excel-friendly CSV')
+  help='Legacy logging mode - if this flag is set uses legacy logfile format - default: Excel-friendly CSV')
 parser.add_argument('--interval', '-i', type=float, metavar='SECONDS',
   help='Interval between control cycle (s) - specify to enable continuous mode - default: run once and exit')
 parser.add_argument('--verbose', '-v', action='store_true',
   help='Verbose mode - if this flag is set additional messages of control process sent to STDOUT - useful for debugging')
 args = parser.parse_args()
 
-# Check input argumants, set defaults where necessaru and validate
+# Check input argumants, set defaults where necessary and validate
 setarg = args.setpoint
-if str.isdigit(setarg[0]):
-  # If first character of specified setpoint is a number, use directly
+try:
+  # If we can convert to float use directly...
   setpoint = float(setarg)
-else:
-  # If first character of specified setpoint is not a number, assume it is a file path
-  with open(setarg, 'r') as f:
-    setpoint = float(f.readline())
+except:
+  # ...Otherwise assume it is path of setpoint file
+  try:
+    with open(setarg, 'r') as f:
+      setpoint = float(f.readline())
+  except:
+    format_print("ERROR: "+setarg+" cannot be found/opened or does not contain a valid setpoint")
+    sys.exit(1)
 
 hysteresis = args.hysteresis
+if hysteresis < 0:
+  format_print("ERROR: hysteresis cannot be negative!")
+  sys.exit(1)
 
 if args.sensorid:
   # set temp_sensor(s) to specified list - handle errors later when list iterated
@@ -132,6 +150,9 @@ if args.sensorid:
 else:
   # Find list of /sys/bus/w1/devices/28-*/w1_slave and select first
   sensor_list = glob.glob('/sys/devices/w1_bus_master1/28*/w1_slave')
+  if not sensor_list:
+    format_print("ERROR: Cannot find any 1-wire temperature sensors on 1-wire bus, ensure temperature sensor(s) are properly connected")
+    sys.exit(1)
   temp_sensors = [sensor_list[0].split('/')[4]]
 
 if args.label:
@@ -144,7 +165,7 @@ else:
 
 if len(temp_labels) != len(temp_sensors):
   format_print("ERROR: Number of label(s) (--label) must match number of sensor(s) (--sensorid) if both arguments are specified")
-  sys.exit()
+  sys.exit(1)
 
 gpio_output = args.gpioout
 
@@ -156,6 +177,9 @@ else:
 logfile_fullpath = args.logfile
 
 cycle_interval = args.interval
+if cycle_interval and cycle_interval < 0:
+  format_print("ERROR: interval cannot be negative!")
+  sys.exit(1)
 
 verbose_print("Setpoint: "+str(setpoint)+"  Hysteresis: "+str(hysteresis)+"  Temperature sensor(s): "+','.join(temp_sensors)+"  Channel label(s): "+','.join(temp_labels))
 
@@ -178,22 +202,23 @@ while True:
   for temp_sensor in temp_sensors:
     current_temps.append(get_temp('/sys/bus/w1/devices/'+temp_sensor+'/w1_slave'))
     if current_temps[-1] == None:
-      format_print("ERROR: Cannot get current temperature from sensor "+temp_sensor+" - check 1-wire driver enabled, sensor is connected correctly and (if set) --sensorid is correct")
+      format_print("WARNING: Cannot get current temperature from sensor "+temp_sensor+" - check 1-wire driver enabled, sensor is connected correctly and (if set) --sensorid is correct")
       current_temps[-1] = ""
-  verbose_print("Current Temperatures: "+''.join(str(current_temps)))
+  verbose_print("Current Temperature(s): "+''.join(str(current_temps)))
   # If multiple sensors, note first sensor specified is always used for control
   current_temp = current_temps[0]
   if current_temp == "":
   # If error occurs on control channel it is critical error, otherwise ignore
+    format_print("ERROR: Cannot get current temperature from control channel, cannot run control cycle")
     if cycle_interval:
       # In continuous mode, wait for next cycle and try again
       sleep(cycle_interval)
       continue
     else:
-      sys.exit()
+      sys.exit(1)
 
-  # Compare temperature with setpoint, set heating demand signal accordingly
-  # Note switch on below setpoint and off at setpoint works best for most heater controllers, since reaction to demand on tends to be faster than off
+  # Compare temperature with setpoint, set heating/cooling demand signal accordingly
+  # Note empirically switch on below setpoint and off at setpoint works best for many heating systems, since reaction to demand on tends to be faster than off
   verbose_print("Comparing measured temperature and setpoint")
   if args.cooler:
     # For cooler, switch on at hysteresis above setpoint and off at setpoint
@@ -227,23 +252,22 @@ while True:
   if actual_status != status:
     format_print("ERROR: Requested demand status "+str(status)+" but actual status "+str(actual_status)+" - failed to set demand signal!")
 
-  # Write temperature, setpoint and actual status to log - Note all all timestamps in UTC
-  with open(logfile_fullpath,"a") as f:
-    if args.legacylog:
-      # Backwards compatibilty - Use previous message-style log - note does not support multiple temperature sensors
-      f.write("%s %d Setpoint: %s Actual: %s Status: %s \n" % (strftime("%Y-%m-%d-%H-%M-%S", gmtime()), time(), setpoint, current_temp, actual_status))
-    else:
-      # Write CSV file with Excel-friendly timestamp.  For CSV mode, write header if file does not exist
-      if os.stat(logfile_fullpath).st_size == 0:
-        f.write(CSV_header)
-      f.write("%s,%s,%s,%s\n" % (strftime("%Y-%m-%d %H:%M:%S", gmtime()), setpoint, ','.join(map(str, current_temps)), actual_status))
+  try:
+    # Write temperature, setpoint and actual status to log - Note all all timestamps in UTC
+    with open(logfile_fullpath,"a") as f:
+      if args.legacylog:
+        # Backwards compatibilty - Use previous message-style log - note does not support multiple temperature sensors
+        f.write("%s %d Setpoint: %s Actual: %s Status: %s \n" % (strftime("%Y-%m-%d-%H-%M-%S", gmtime()), time(), setpoint, current_temp, actual_status))
+      else:
+        # Write CSV file with Excel-friendly timestamp.  For CSV mode, write header if file does not exist
+        if os.stat(logfile_fullpath).st_size == 0:
+          f.write(CSV_header)
+        f.write("%s,%s,%s,%s\n" % (strftime("%Y-%m-%d %H:%M:%S", gmtime()), setpoint, ','.join(map(str, current_temps)), actual_status))
+  except:
+    format_print("WARNING: Cannot open / write to logfile "+logfile_fullpath+" - check filename is correct and permissions?")
 
   # Check if one-shot mode or continuous - if interval argument is set use continuous
   if cycle_interval:
     sleep(cycle_interval)
   else:
     break
-
-#   check all inputs have correct datatype validation and defaults
-#   document outputs - log for controller_analyse (STDOUT), errors/warning (STDOUT), temperature to Excel-friendly CSV (or optional legacy message log for backwards compat)
-#   testing including ALL input argument combinations (set/not set/multiple/etc) to ensure correct state set (log analysis), data logged(CSV), excel plots, multi channel, clean reboot, fresh image, etc
