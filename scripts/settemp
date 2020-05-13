@@ -1,23 +1,39 @@
 #! /bin/bash
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Control setpoint (stored in file 'setpoint') for use with temperature controller
 
+# Set default working directory same as this script location (containing setpoint file)
+WorkingDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# See if WorkingDir is set in config file, /etc always takes precedence
+if [[ -s /etc/controller.conf ]]; then
+  source "/etc/controller.conf"
+elif [[ -s ../config/controller.conf ]]; then
+  # Try relative path if being run straight from repo
+  source "../config/controller.conf"
+fi
+
+DIR="${WorkingDir}"
+
+# If no arguments are specified, read current setpoint and exit
 if [ "$#" -eq 0 ]; then
-   read setpoint < "$DIR/setpoint" 
-   datestr="$(date +"%F-%T:")"
-   echo "$datestr Setpoint: $setpoint" >&2; exit 1
+  read setpoint < "$DIR/setpoint"
+  datestr="$(date +"%F-%T:")"
+  echo "$datestr Setpoint: $setpoint" >&2; exit 1
 fi
 
+# If setpoint is specified, check it's a valid float
 re='^[0-9]+([.][0-9]+)?$'
-if ! [[ $1 =~ $re ]] ; then
-   echo "ERROR: Setpoint must be a number" >&2; exit 1
+if ! [[ "${1}" =~ $re ]] ; then
+  echo "ERROR: Setpoint must be a number" >&2; exit 1
 fi
 
-echo $1 >  "$DIR/setpoint"
+# Write new setpoint to setpoint file
+echo "${1}" >  "$DIR/setpoint"
 read setpoint <  "$DIR/setpoint"
 datestr="$(date +"%F-%T:")"
-echo "$datestr Setpoint: $setpoint" >>  /var/log/control_temp.log
-echo "$datestr Setpoint: $setpoint" 
-
-
-
+# If log is specified in config file, output to log as well as STDOUT
+if [[ ! -z "${ControllerLogfile}" ]]; then
+  echo "$datestr Setpoint: $setpoint" >>  "${ControllerLogfile}"
+fi
+echo "$datestr Setpoint: $setpoint"
