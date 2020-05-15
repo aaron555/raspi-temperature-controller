@@ -2,12 +2,13 @@
 
 # Analyse temperature controller log-files produced by control_temp.py
 
-# Syntax: ./controller_analyse.py [<full filename and path of log> <start time> <end time>]
+# Syntax: ./controller_analyse.py [<full filename and path of log> <start time> <end time> <output directory>]
 
 # All arguments are optional
 # If <full filename and path of log> is not specified default /var/log/control_temp.log
 # If <start time> is not specified default [midnight at end of day on which first switching event occurs]
 # If <end time> is not specified default [midnight at start of last day in log]
+# If <output directory> is outputs will be written to directory from which script is run
 
 # Note start and end times MUST be either a string in the form YYYY-MM-DD or an integer unix timestamp
 # Invalid start or end times will be ignored (default of all available data used)
@@ -90,6 +91,12 @@ else:
       print("WARNING: Invalid end date specified - using default (all available data)")
       requested_end = end_time
 #print(strftime("%Y-%m-%d-%H:%M:%S", gmtime(requested_end)))
+
+# Check if output directory is specified
+if len(sys.argv) < 5:
+  output_dir=""
+else:
+  output_dir = sys.argv[3]
 
 # Determine if shorter timescale for analysis has been specified
 if requested_start > start_time and requested_start < end_time:
@@ -237,7 +244,7 @@ print(summary_string)
 max_hours = max(time_on_hours)
 max_index = time_on_hours.index(max_hours)
 print("Max %.1f hours in a day (on %s) and min %.1f hours in a day" %(max_hours, datestamps[max_index], min(time_on_hours)))
-file_timestamp = strftime("%Y%m%d_%H%M%S", gmtime())
+file_timestamp = output_dir + strftime("%Y%m%d_%H%M%S", gmtime())
 data_filename = file_timestamp + "_controller_analysis.csv"
 print("Saving csv of results to %s" %data_filename)
 with open(data_filename, "w") as f:

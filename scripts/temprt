@@ -1,0 +1,54 @@
+#! /bin/bash
+
+# Obtain latest data from all configured wired temperature sensors and return to STDOUT
+
+# Source config - /etc always takes precedence
+if [[ -s /etc/controller.conf ]]; then
+  source "/etc/controller.conf"
+elif [[ -s config/controller.conf ]]; then
+  # Try relative path if being run straight from repo - only works if running from repo root
+  source "config/controller.conf"
+fi
+# If no config file can be found, read all available sensors and label with sensor ID
+
+round()
+{
+echo $(printf %.$2f $(echo "scale=$2;(((10^$2)*$1)+0.5)/(10^$2)" | bc))
+};
+
+# If no sensors specified, find all available sensors
+if [[ -z "${WiredSensors[@]}" ]]; then
+  WiredSensors=($(find /sys/devices/w1_bus_master1/ -name "28-*" 2>/dev/null | cut -d"/" -f5))
+  # If no senor IDs specified, ignore labels - no way of knowing if in right order
+  WiredSensorLabels=()
+fi
+
+if [[ -z "${WiredSensors[@]}" ]]; then
+  echo "WARNING: No 1-wire temperature sensors specified / found"
+fi
+
+date=$(date)
+scale=1000
+
+# 1-wire Dallas temperature sensors
+for ii in "${!WiredSensors[@]}"; do
+  if [[ -f "/sys/bus/w1/devices/${WiredSensors[$ii]}/w1_slave" ]]; then
+    tempraw=$(cat "/sys/bus/w1/devices/${WiredSensors[$ii]}/w1_slave" | grep  -E -o ".{0,0}t=.{0,5}" | cut -c 3-)
+    tempscaled=$(round "$tempraw/$scale" 2)
+    if [[ -z "${WiredSensorLabels[$ii]}" ]]; then
+      # If no label(s) specified use sensor ID
+      WiredSensorLabels[$ii]="${WiredSensors[$ii]}"
+    fi
+  printf "%s Temperature %0.2f C\n" "${WiredSensorLabels[$ii]}" "$tempscaled"
+  else
+    echo "ERROR: Cannot find sensor ${WiredSensors[$ii]}"
+  fi
+done
+
+# CPU temperature (note requires sudo on older raspbian distros)
+if [[ -f /opt/vc/bin/vcgencmd ]]; then
+  CPU_temp=$(/opt/vc/bin/vcgencmd measure_temp | cut -d'=' -f2 | cut -d"'" -f1)
+  echo "CPU Temperature ${CPU_temp} C"
+else
+  echo "WARNING: Cannot get CPU temperature - unsupported hardware?"
+fi

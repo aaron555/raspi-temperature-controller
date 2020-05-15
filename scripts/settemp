@@ -8,18 +8,23 @@ WorkingDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # See if WorkingDir is set in config file, /etc always takes precedence
 if [[ -s /etc/controller.conf ]]; then
   source "/etc/controller.conf"
-elif [[ -s ../config/controller.conf ]]; then
-  # Try relative path if being run straight from repo
-  source "../config/controller.conf"
+elif [[ -s config/controller.conf ]]; then
+  # Try relative path if being run straight from repo- only works if running from repo root
+  source "config/controller.conf"
 fi
 
 DIR="${WorkingDir}"
 
 # If no arguments are specified, read current setpoint and exit
 if [ "$#" -eq 0 ]; then
-  read setpoint < "$DIR/setpoint"
-  datestr="$(date +"%F-%T:")"
-  echo "$datestr Setpoint: $setpoint" >&2; exit 1
+  if [[ -s "$DIR/setpoint" ]]; then
+    read setpoint < "$DIR/setpoint"
+    datestr="$(date +"%F-%T:")"
+    echo "$datestr Setpoint: $setpoint" >&2; exit 0
+  else
+    echo "ERROR: cannot find setpoint file $DIR/setpoint or file is empty, and no new setpoint specified"
+    exit 1
+  fi
 fi
 
 # If setpoint is specified, check it's a valid float
