@@ -66,11 +66,15 @@ with open(log_file, "r") as f:
   raw_log = list(f)
 
 # Find first switch in log (and hence earliest start time) and  end time of log
+start_time=None
 for line in raw_log:
   if "Switching system" in line:
     start_time = calendar.timegm(time.strptime(line[0:10], "%Y-%m-%d")) + 86400
     break
 end_time = calendar.timegm(time.strptime(raw_log[-1][0:10], "%Y-%m-%d"))
+if not start_time or not end_time:
+  print("ERROR: logfile does not appear to contain at least one valid switch on and switch off event" )
+  sys.exit(1)
 print("Log file covers %s to %s" % (raw_log[0][0:19], raw_log[-1][0:19]))
 print("Log file can be analysed from from %s to %s" % (strftime("%Y-%m-%d_%H:%M:%S", gmtime(start_time)), strftime("%Y-%m-%d-%H:%M:%S", gmtime(end_time))))
 num_days = int((end_time - start_time) / 86400)
@@ -96,7 +100,7 @@ else:
 if len(sys.argv) < 5:
   output_dir=""
 else:
-  output_dir = sys.argv[3]
+  output_dir = sys.argv[4]
 
 # Determine if shorter timescale for analysis has been specified
 if requested_start > start_time and requested_start < end_time:
@@ -142,7 +146,7 @@ for line in raw_log:
       line_time = calendar.timegm(time.strptime(line[0:19], "%Y-%m-%d-%H-%M-%S"))
     except ValueError:
       # Line does not contain valid data - ignore it
-      print("Invalid line:  %s" % repr(line))
+      # print("Invalid line:  %s" % repr(line))
       continue
   line_day = strftime("%Y%m%d", gmtime(line_time))
   if line_day != strftime("%Y%m%d", gmtime(prev_time)):

@@ -78,10 +78,10 @@ elif [[ "${1,,}" = "control" ]]; then
     ARG_STRING+=" -i ${INTERVAL}"
   fi
   # Call controller with configured options
-  "${SCRIPTDIR}/control_temp.py" ${ARG_STRING}
+  "${SCRIPTDIR}/control_temp.py" ${ARG_STRING} >> "${ControllerLogfile}"
 elif [[ "${1,,}" = "analyse" ]]; then
   # Control mode - run control_temp.py
-  ARG_STRING="${ControllerLogfile} ${StartDate} ${EndDate} ${AnalysisOutputDir} "
+  ARG_STRING="${ControllerLogfile} $(date +%s -d ${StartDate}) $(date +%s -d ${EndDate}) ${AnalysisOutputDir}"
   # Call controller analysis script with configured options
   "${SCRIPTDIR}/controller_analyse.py" ${ARG_STRING}
   # *** Push data to AWS - if configured - see current scripts on raspi/raspi2
