@@ -64,7 +64,7 @@ elif [[ "${1,,}" = "control" ]]; then
   fi
   if [[ ! -z ${GPIO_OUTPUT} ]]; then
     ARG_STRING+=" -g ${GPIO_OUTPUT}"
-  fi  
+  fi
   if [[ ! -z ${GPIO_FEEDBACK} ]]; then
     ARG_STRING+=" -f ${GPIO_FEEDBACK}"
   fi
@@ -81,11 +81,10 @@ elif [[ "${1,,}" = "control" ]]; then
   "${SCRIPTDIR}/control_temp.py" ${ARG_STRING}
 elif [[ "${1,,}" = "analyse" ]]; then
   # Control mode - run control_temp.py
-  ARG_STRING=
-  # *** Build argument string from config file
+  ARG_STRING="${ControllerLogfile} ${StartDate} ${EndDate} ${AnalysisOutputDir} "
   # Call controller analysis script with configured options
   "${SCRIPTDIR}/controller_analyse.py" ${ARG_STRING}
-  # *** Push data to AWS - if configured
+  # *** Push data to AWS - if configured - see current scripts on raspi/raspi2
 else
   echo "ERROR: Unrecognised/missing function ${1} - valid arguments are 'set', 'get', 'control', 'analyse'"
   exit 1
