@@ -33,13 +33,25 @@ import glob
 from time import sleep, gmtime, strftime, time
 import argparse
 
-# Debug messages (verbose mode)
-def verbose_print(message):
-  if args.verbose:
-    print("%s: DEBUG: %s" % (strftime("%Y-%m-%d-%H:%M:%S", gmtime()), message))
-
-def format_print(message):
-  print("%s: %s" % (strftime("%Y-%m-%d-%H:%M:%S", gmtime()), message))
+# Format and print/log message
+def format_print(message,verbose=None):
+  if not verbose:
+    # Messages always printed - status changes, ERROR/WARNING
+    message_print=("%s: %s" % (strftime("%Y-%m-%d-%H:%M:%S", gmtime()), message))
+  elif args.verbose:
+    # Only print DEBUG messages in verbose mode
+    message_print=("%s: DEBUG: %s" % (strftime("%Y-%m-%d-%H:%M:%S", gmtime()), message))
+  else:
+    # Ignore DEBUG messages unless in verbose mode
+    return 0
+  print(message_print)
+  # Optionally write all messages to file as well as STDOUT
+  if args.messagelog:
+    try:
+      with open(args.messagelog, 'a') as f:
+        f.write(message_print+"\n")
+    except:
+      print("%s: WARNING: Cannot write to specified logfile %s - check correct path/filename and permissions" % (strftime("%Y-%m-%d-%H:%M:%S", gmtime()), args.messagelog))
 
 # Configure GPIO specified and set direction specified, if not already configured
 def configure_gpio(gpionum,direction):
@@ -48,7 +60,7 @@ def configure_gpio(gpionum,direction):
   gpionum = str(gpionum)
   # Export GPIO to allow it to be used
   if not os.path.exists('/sys/class/gpio/gpio'+gpionum+'/'):
-    verbose_print("GPIO "+gpionum+" is not configured - exporting")
+    format_print("GPIO "+gpionum+" is not configured - exporting", "verbose")
     export_status = os.WEXITSTATUS(os.system('echo '+gpionum+' > /sys/class/gpio/export 2>/dev/null'))
     if export_status != 0:
       format_print("ERROR: Cannot configure GPIO "+gpionum+" is this a valid GPIO number?")
@@ -56,11 +68,11 @@ def configure_gpio(gpionum,direction):
   # Set GPIO direction
   with open('/sys/class/gpio/gpio'+gpionum+'/direction', 'r') as f:
     current_direction = f.readline().rstrip()
-    verbose_print("Current GPIO "+gpionum+" setting: " + current_direction)
+    format_print("Current GPIO "+gpionum+" setting: " + current_direction, "verbose")
   if current_direction != direction:
     # If direction is not correct, may have only just been exported, need delay to prevent failure due to first-run permissions issue in Raspbian
     sleep(1)
-    verbose_print("Setting GPIO "+gpionum+" direction to "+direction)
+    format_print("Setting GPIO "+gpionum+" direction to "+direction, "verbose")
     direction_status = os.WEXITSTATUS(os.system('echo '+direction+' > /sys/class/gpio/gpio'+gpionum+'/direction 2>/dev/null'))
     if direction_status != 0:
       format_print("ERROR: Cannot set direction of GPIO "+gpionum)
@@ -108,7 +120,7 @@ parser.add_argument('--hysteresis', '-t', type=float, default=0.1, metavar='TEMP
 parser.add_argument('--cooler', '-c', action='store_true',
   help='By default assume controlling heater - set this flag for cooler (invert output / move hysteresis above setpoint)')
 parser.add_argument('--sensorid', '-s', type=str, nargs='+', metavar='STRING',
-  help='1-wire temperature sensor ID(s) e.g. "28-xxxx" (default: first of /sys/bus/w1/devices/28-*/w1_slave detected) - NOTE if multiple temperature sensors specified, first sensor in list will be used for control')
+  help='1-wire temperature sensor ID(s) e.g. "28-xxxx" (default: all available 1-wire sensors) - NOTE if multiple temperature sensors specified/found, first sensor in list will be used for control')
 parser.add_argument('--label', '-n', type=str, nargs='+', metavar='STRING',
   help='Channel label(s)/name(s) used as prefix in data log header column header(s) - default: "Current"')
 parser.add_argument('--gpioout', '-g', type=int, default=17, metavar='GPIO',
@@ -119,6 +131,8 @@ parser.add_argument('--logfile', '-l', type=str, metavar='FILENAME', default="te
   help='Full path and filename of output logfile for temperature and setpoint data - default: "temperature_data.csv" (string)')
 parser.add_argument('--legacylog', '-y', action='store_true',
   help='Legacy logging mode - if this flag is set uses legacy logfile format - default: Excel-friendly CSV')
+parser.add_argument('--messagelog', '-m', type=str, metavar='FILENAME',
+  help='Full path and filename of optional output logfile for controller messages - if not specified messages sent to STDOUT only (string)')
 parser.add_argument('--interval', '-i', type=float, metavar='SECONDS',
   help='Interval between control cycle (s) - specify to enable continuous mode - default: run once and exit')
 parser.add_argument('--verbose', '-v', action='store_true',
@@ -153,7 +167,7 @@ else:
   if not sensor_list:
     format_print("ERROR: Cannot find any 1-wire temperature sensors on 1-wire bus, ensure temperature sensor(s) are properly connected")
     sys.exit(1)
-  temp_sensors = [sensor_list[0].split('/')[4]]
+  temp_sensors = [ele.split('/')[4] for ele in sensor_list]
 
 if args.label:
   temp_labels = args.label
@@ -181,14 +195,14 @@ if cycle_interval and cycle_interval < 0:
   format_print("ERROR: interval cannot be negative!")
   sys.exit(1)
 
-verbose_print("Setpoint: "+str(setpoint)+"  Hysteresis: "+str(hysteresis)+"  Temperature sensor(s): "+','.join(temp_sensors)+"  Channel label(s): "+','.join(temp_labels))
+format_print("Setpoint: "+str(setpoint)+"  Hysteresis: "+str(hysteresis)+"  Temperature sensor(s): "+','.join(temp_sensors)+"  Channel label(s): "+','.join(temp_labels), "verbose")
 
 # Prepare CSV file header for data log
 CSV_header = "Timestamp,Setpoint (C),"
 for temp_label in temp_labels:
   CSV_header += temp_label+" Temperature (C),"
 CSV_header += "Demand Status (0/1)\n"
-verbose_print("CSV header: "+CSV_header)
+format_print("CSV header: "+CSV_header, "verbose")
 
 # Set up GPIOs
 configure_gpio(gpio_output,"out")
@@ -204,7 +218,7 @@ while True:
     if current_temps[-1] == None:
       format_print("WARNING: Cannot get current temperature from sensor "+temp_sensor+" - check 1-wire driver enabled, sensor is connected correctly and (if set) --sensorid is correct")
       current_temps[-1] = ""
-  verbose_print("Current Temperature(s): "+''.join(str(current_temps)))
+  format_print("Current Temperature(s): "+''.join(str(current_temps)), "verbose")
   # If multiple sensors, note first sensor specified is always used for control
   current_temp = current_temps[0]
   if current_temp == "":
@@ -219,7 +233,7 @@ while True:
 
   # Compare temperature with setpoint, set heating/cooling demand signal accordingly
   # Note empirically switch on below setpoint and off at setpoint works best for many heating systems, since reaction to demand on tends to be faster than off
-  verbose_print("Comparing measured temperature and setpoint")
+  format_print("Comparing measured temperature and setpoint", "verbose")
   if args.cooler:
     # For cooler, switch on at hysteresis above setpoint and off at setpoint
     above = (current_temp - hysteresis) > setpoint
@@ -230,19 +244,21 @@ while True:
     below = current_temp > setpoint
   status = get_gpio(gpio_output)
   if above:
-    verbose_print("Demand required, checking if system is on")
+    format_print("Demand required, checking if system is on", "verbose")
     if status == 0:
-      print("%s: Setpoint=%s, Actual=%s - Switching system on" % (strftime("%Y-%m-%d-%H:%M:%S", gmtime()), setpoint, current_temp))
+      status_message=("Setpoint=%s, Actual=%s - Switching system on" % (setpoint, current_temp))
+      format_print(status_message)
       set_gpio(gpio_output,"1")
       status = 1
   elif below:
-    verbose_print("Demand not required, checking if system is on")
+    format_print("Demand not required, checking if system is on", "verbose")
     if status == 1:
-      print("%s: Setpoint=%s, Actual=%s - Switching system off" % (strftime("%Y-%m-%d-%H:%M:%S", gmtime()), setpoint, current_temp))
+      status_message=("Setpoint=%s, Actual=%s - Switching system off" % (setpoint, current_temp))
+      format_print(status_message)
       set_gpio(gpio_output,"0")
       status = 0
   else:
-    verbose_print("Temperature OK")
+    format_print("Temperature OK", "verbose")
     pass
 
   # Read back demand signal - if spare relay contacts (DP), can test here if relay has actually switched

@@ -78,6 +78,9 @@ if not start_time or not end_time:
 print("Log file covers %s to %s" % (raw_log[0][0:19], raw_log[-1][0:19]))
 print("Log file can be analysed from from %s to %s" % (strftime("%Y-%m-%d_%H:%M:%S", gmtime(start_time)), strftime("%Y-%m-%d-%H:%M:%S", gmtime(end_time))))
 num_days = int((end_time - start_time) / 86400)
+if num_days < 1:
+  print("ERROR: logfile contains insufficient data - require at least one full day of data, including two midnight crossings at start and end" )
+  sys.exit(1)
 end_time_log = end_time
 print("Total %s log lines, %d full days in log" % (len(raw_log), num_days))
 
@@ -101,6 +104,9 @@ if len(sys.argv) < 5:
   output_dir=""
 else:
   output_dir = sys.argv[4]
+  # Ensure logfile path ends with a trailing slash
+  if output_dir[-1] != "/":
+    output_dir = output_dir + "/"
 
 # Determine if shorter timescale for analysis has been specified
 if requested_start > start_time and requested_start < end_time:

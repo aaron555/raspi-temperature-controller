@@ -74,11 +74,14 @@ elif [[ "${1,,}" = "control" ]]; then
   if [[ ${LEGACYLOG,,} = "1" ]] || [[ ${LEGACYLOG,,} = "enabled" ]] || [[ ${LEGACYLOG,,} = "yes" ]]; then
     ARG_STRING+=" -y"
   fi
+  if [[ ! -z ${ControllerLogfile} ]]; then
+    ARG_STRING+=" -m ${ControllerLogfile}"
+  fi
   if [[ ${2,,} = "continuous" ]] && [[ ! -z ${INTERVAL} ]]; then
     ARG_STRING+=" -i ${INTERVAL}"
   fi
   # Call controller with configured options
-  "${SCRIPTDIR}/control_temp.py" ${ARG_STRING} >> "${ControllerLogfile}"
+  "${SCRIPTDIR}/control_temp.py" ${ARG_STRING}
 elif [[ "${1,,}" = "analyse" ]]; then
   # Control mode - run control_temp.py
   ARG_STRING="${ControllerLogfile} $(date +%s -d ${StartDate}) $(date +%s -d ${EndDate}) ${AnalysisOutputDir}"
