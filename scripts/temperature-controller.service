@@ -1,0 +1,11 @@
+[Unit]
+Description=Simple Rasperry Pi Temperature Controller
+After=local-fs.target multi-user.target
+
+[Service]
+ExecStart=/home/aaron/raspi-temperature-controller/temperature_controller.sh control continuous
+Restart=on-failure
+
+[Install]
+Alias=temperature-controller.service
+WantedBy=multi-user.target
