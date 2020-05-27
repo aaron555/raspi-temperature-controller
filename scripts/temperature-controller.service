@@ -5,6 +5,8 @@ After=local-fs.target multi-user.target
 [Service]
 ExecStart=/home/aaron/raspi-temperature-controller/temperature_controller.sh control continuous
 Restart=on-failure
+Restart=always
+RestartSec=10
 
 [Install]
 Alias=temperature-controller.service

@@ -39,6 +39,14 @@ else
   exit 1
 fi
 
+function switch_off_and_exit {
+  echo "Temperature controller terminated - checking demand is off and exiting wrapper process"
+  if [[ -f /sys/class/gpio/gpio${GPIO_OUTPUT}/value ]] && [[ $(cat /sys/class/gpio/gpio${GPIO_OUTPUT}/value) = "1" ]]; then
+    echo 0 > /sys/class/gpio/gpio${GPIO_OUTPUT}/value
+  fi
+  exit 1
+}
+
 # Operating mode
 if [[ "${1,,}" = "set" ]]; then
   # Set mode - run settemp
@@ -79,6 +87,9 @@ elif [[ "${1,,}" = "control" ]]; then
   fi
   if [[ ${2,,} = "continuous" ]] && [[ ! -z ${INTERVAL} ]]; then
     ARG_STRING+=" -i ${INTERVAL}"
+    # In continuous mode, need to catch CTRL-C and switch off GPIO
+    echo "Starting temperature controller in continuous mode - CTRL-C to exit"
+    trap "switch_off_and_exit" SIGHUP SIGINT SIGTERM
   fi
   # Call controller with configured options
   "${SCRIPTDIR}/control_temp.py" ${ARG_STRING}

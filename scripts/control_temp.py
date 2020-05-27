@@ -226,7 +226,12 @@ while True:
     format_print("ERROR: Cannot get current temperature from control channel, cannot run control cycle")
     if cycle_interval:
       # In continuous mode, wait for next cycle and try again
-      sleep(cycle_interval)
+      try:
+        sleep(cycle_interval)
+      except KeyboardInterrupt:
+        format_print("Keyboard interrupt - switching off demand and exiting temperature controller")
+        set_gpio(gpio_output,"0")
+        sys.exit(1)
       continue
     else:
       sys.exit(1)
@@ -286,6 +291,12 @@ while True:
 
   # Check if one-shot mode or continuous - if interval argument is set use continuous
   if cycle_interval:
-    sleep(cycle_interval)
+      try:
+        sleep(cycle_interval)
+      except KeyboardInterrupt:
+        format_print("Keyboard interrupt - switching off and exiting")
+        set_gpio(gpio_output,"0")
+        sys.exit(1)
+      continue
   else:
     break
