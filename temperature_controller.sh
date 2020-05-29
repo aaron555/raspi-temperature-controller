@@ -95,6 +95,10 @@ elif [[ "${1,,}" = "control" ]]; then
   "${SCRIPTDIR}/control_temp.py" ${ARG_STRING}
 elif [[ "${1,,}" = "analyse" ]]; then
   # Control mode - run control_temp.py
+  if [[ ! -d ${AnalysisOutputDir} ]]; then
+    echo "ERROR: Specified output directory for log analysis ${AnalysisOutputDir} does not exist"
+    exit 1
+  fi
   ARG_STRING="${ControllerLogfile} $(date +%s -d ${StartDate}) $(date +%s -d ${EndDate}) ${AnalysisOutputDir}"
   # Call controller analysis script with configured options
   "${SCRIPTDIR}/controller_analyse.py" ${ARG_STRING}
