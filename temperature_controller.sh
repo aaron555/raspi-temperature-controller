@@ -15,7 +15,8 @@
 #       'set' to set temperature setpoint (in file)
 #       'get' to get current temperature(s) (to STDOUT)
 #       'control' to run temperature controller
-#       'analyse' to analyse logfile (and push data to AWS S3 if configure)
+#       'analyse' to analyse logfile (and push data to AWS S3 if configured)
+#       'sync' Push data to AWS S3 if configured
 # <function argument> is optional:
 #       (in 'set' mode) - a setpoint temperature in (C) to write to setpoint file (float) - if omitted read current setpoint
 #       (in 'control' mode) - string 'continuous' to run controller in continuous mode, otherwise run-once and exit
@@ -45,6 +46,16 @@ function switch_off_and_exit {
     echo 0 > /sys/class/gpio/gpio${GPIO_OUTPUT}/value
   fi
   exit 1
+}
+
+function sync_to_s3 {
+  # If enabled in config, sync outputs to S3
+  if [[ ${ENABLE_S3_SYNC,,} = "1" ]] || [[ ${ENABLE_S3_SYNC,,} = "enabled" ]] || [[ ${ENABLE_S3_SYNC,,} = "yes" ]]; then
+    # sync to s3, if error is aws cli installed, is path correct, check permissions IAM, etc
+    aws s3 sync --exclude "*" --include $(basename ${DataLogfile}) $(dirname  ${DataLogfile}) ${S3_DESTINATION_PATH}
+    aws s3 sync --exclude "*" --include $(basename ${ControllerLogfile}) $(dirname ${ControllerLogfile}) ${S3_DESTINATION_PATH}
+    aws s3 sync ${AnalysisOutputDir} ${S3_DESTINATION_PATH}
+  fi
 }
 
 # Operating mode
@@ -102,8 +113,11 @@ elif [[ "${1,,}" = "analyse" ]]; then
   ARG_STRING="${ControllerLogfile} $(date +%s -d ${StartDate}) $(date +%s -d ${EndDate}) ${AnalysisOutputDir}"
   # Call controller analysis script with configured options
   "${SCRIPTDIR}/controller_analyse.py" ${ARG_STRING}
-  # *** Push data to AWS - if configured - see current scripts on raspi/raspi2
+  # Push data to AWS -if configured
+  sync_to_s3
+elif [[ "${1,,}" = "sync" ]]; then
+  sync_to_s3
 else
-  echo "ERROR: Unrecognised/missing function ${1} - valid arguments are 'set', 'get', 'control', 'analyse'"
+  echo "ERROR: Unrecognised/missing function ${1} - valid arguments are 'set', 'get', 'control', 'analyse', 'sync'"
   exit 1
 fi

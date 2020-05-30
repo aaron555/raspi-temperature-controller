@@ -100,7 +100,16 @@ def get_temp(devicefile):
   except:
     return None
 
-   # get the status from the end of line 1
+  if len(lines) != 2:
+    return None
+
+  # Occasionally after sensors are unplugged status can be YES but all values zero
+  null_response = "00 00 00 00 00 00 00 00 00"
+  # Null response is never valid even if temp and thresholds are zero - but eg config register always ends 'f'
+  if lines[0][0:26] == null_response or lines[1][0:26] == null_response:
+    return None
+
+  # get the status from the end of line 1
   status = lines[0][-4:-1]
 
    # is the status is ok, get the temperature from line 2
