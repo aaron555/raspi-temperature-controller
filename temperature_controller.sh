@@ -52,9 +52,9 @@ function sync_to_s3 {
   # If enabled in config, sync outputs to S3
   if [[ ${ENABLE_S3_SYNC,,} = "1" ]] || [[ ${ENABLE_S3_SYNC,,} = "enabled" ]] || [[ ${ENABLE_S3_SYNC,,} = "yes" ]]; then
     # sync to s3, if error is aws cli installed, is path correct, check permissions IAM, etc
-    aws s3 sync --exclude "*" --include $(basename ${DataLogfile}) $(dirname  ${DataLogfile}) ${S3_DESTINATION_PATH}
-    aws s3 sync --exclude "*" --include $(basename ${ControllerLogfile}) $(dirname ${ControllerLogfile}) ${S3_DESTINATION_PATH}
-    aws s3 sync ${AnalysisOutputDir} ${S3_DESTINATION_PATH}
+    aws s3 sync --exclude "*" --include $(basename ${DATA_LOGFILE}) $(dirname  ${DATA_LOGFILE}) ${S3_DESTINATION_PATH}
+    aws s3 sync --exclude "*" --include $(basename ${CONTROLLER_LOGFILE}) $(dirname ${CONTROLLER_LOGFILE}) ${S3_DESTINATION_PATH}
+    aws s3 sync ${ANALYSIS_OUTDIR} ${S3_DESTINATION_PATH}
   fi
 }
 
@@ -68,18 +68,18 @@ elif [[ "${1,,}" = "get" ]]; then
 elif [[ "${1,,}" = "control" ]]; then
   # Control mode - run control_temp.py
   ARG_STRING=
-  ARG_STRING+="${WorkingDir}/setpoint"
+  ARG_STRING+="${WORKING_DIR}/setpoint"
   if [[ ! -z ${HYTERESIS} ]]; then
     ARG_STRING+=" -t ${HYTERESIS}"
   fi
   if [[ ${COOLERMODE,,} = "1" ]] || [[ ${COOLERMODE,,} = "enabled" ]] || [[ ${COOLERMODE,,} = "yes" ]]; then
     ARG_STRING+=" -c"
   fi
-  if [[ ! -z ${WiredSensors} ]]; then
-    ARG_STRING+=" -s ${WiredSensors[@}]}"
+  if [[ ! -z ${WIRED_SENSORS} ]]; then
+    ARG_STRING+=" -s ${WIRED_SENSORS[@}]}"
   fi
-  if [[ ! -z ${WiredSensorLabels} ]]; then
-    ARG_STRING+=" -n ${WiredSensorLabels[@}]}"
+  if [[ ! -z ${WIRED_SENSOR_LABELS} ]]; then
+    ARG_STRING+=" -n ${WIRED_SENSOR_LABELS[@}]}"
   fi
   if [[ ! -z ${GPIO_OUTPUT} ]]; then
     ARG_STRING+=" -g ${GPIO_OUTPUT}"
@@ -87,14 +87,14 @@ elif [[ "${1,,}" = "control" ]]; then
   if [[ ! -z ${GPIO_FEEDBACK} ]]; then
     ARG_STRING+=" -f ${GPIO_FEEDBACK}"
   fi
-  if [[ ! -z ${DataLogfile} ]]; then
-    ARG_STRING+=" -l ${DataLogfile}"
+  if [[ ! -z ${DATA_LOGFILE} ]]; then
+    ARG_STRING+=" -l ${DATA_LOGFILE}"
   fi
   if [[ ${LEGACYLOG,,} = "1" ]] || [[ ${LEGACYLOG,,} = "enabled" ]] || [[ ${LEGACYLOG,,} = "yes" ]]; then
     ARG_STRING+=" -y"
   fi
-  if [[ ! -z ${ControllerLogfile} ]]; then
-    ARG_STRING+=" -m ${ControllerLogfile}"
+  if [[ ! -z ${CONTROLLER_LOGFILE} ]]; then
+    ARG_STRING+=" -m ${CONTROLLER_LOGFILE}"
   fi
   if [[ ${2,,} = "continuous" ]] && [[ ! -z ${INTERVAL} ]]; then
     ARG_STRING+=" -i ${INTERVAL}"
@@ -106,11 +106,11 @@ elif [[ "${1,,}" = "control" ]]; then
   "${SCRIPTDIR}/control_temp.py" ${ARG_STRING}
 elif [[ "${1,,}" = "analyse" ]]; then
   # Control mode - run control_temp.py
-  if [[ ! -d ${AnalysisOutputDir} ]]; then
-    echo "ERROR: Specified output directory for log analysis ${AnalysisOutputDir} does not exist"
+  if [[ ! -d ${ANALYSIS_OUTDIR} ]]; then
+    echo "ERROR: Specified output directory for log analysis ${ANALYSIS_OUTDIR} does not exist"
     exit 1
   fi
-  ARG_STRING="${ControllerLogfile} $(date +%s -d ${StartDate}) $(date +%s -d ${EndDate}) ${AnalysisOutputDir}"
+  ARG_STRING="${CONTROLLER_LOGFILE} $(date +%s -d ${START_DATE}) $(date +%s -d ${END_DATE}) ${ANALYSIS_OUTDIR}"
   # Call controller analysis script with configured options
   "${SCRIPTDIR}/controller_analyse.py" ${ARG_STRING}
   # Push data to AWS -if configured

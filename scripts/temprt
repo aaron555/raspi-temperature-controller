@@ -17,13 +17,13 @@ echo $(printf %.$2f $(echo "scale=$2;(((10^$2)*$1)+0.5)/(10^$2)" | bc))
 };
 
 # If no sensors specified, find all available sensors
-if [[ -z "${WiredSensors[@]}" ]]; then
-  WiredSensors=($(find /sys/devices/w1_bus_master1/ -name "28-*" 2>/dev/null | cut -d"/" -f5))
+if [[ -z "${WIRED_SENSORS[@]}" ]]; then
+  WIRED_SENSORS=($(find /sys/devices/w1_bus_master1/ -name "28-*" 2>/dev/null | cut -d"/" -f5))
   # If no senor IDs specified, ignore labels - no way of knowing if in right order
-  WiredSensorLabels=()
+  WIRED_SENSOR_LABELS=()
 fi
 
-if [[ -z "${WiredSensors[@]}" ]]; then
+if [[ -z "${WIRED_SENSORS[@]}" ]]; then
   echo "WARNING: No 1-wire temperature sensors specified / found"
 fi
 
@@ -31,17 +31,17 @@ date=$(date)
 scale=1000
 
 # 1-wire Dallas temperature sensors
-for ii in "${!WiredSensors[@]}"; do
-  if [[ -f "/sys/bus/w1/devices/${WiredSensors[$ii]}/w1_slave" ]]; then
-    tempraw=$(cat "/sys/bus/w1/devices/${WiredSensors[$ii]}/w1_slave" | grep  -E -o ".{0,0}t=.{0,5}" | cut -c 3-)
+for ii in "${!WIRED_SENSORS[@]}"; do
+  if [[ -f "/sys/bus/w1/devices/${WIRED_SENSORS[$ii]}/w1_slave" ]]; then
+    tempraw=$(cat "/sys/bus/w1/devices/${WIRED_SENSORS[$ii]}/w1_slave" | grep  -E -o ".{0,0}t=.{0,5}" | cut -c 3-)
     tempscaled=$(round "$tempraw/$scale" 2)
-    if [[ -z "${WiredSensorLabels[$ii]}" ]]; then
+    if [[ -z "${WIRED_SENSOR_LABELS[$ii]}" ]]; then
       # If no label(s) specified use sensor ID
-      WiredSensorLabels[$ii]="${WiredSensors[$ii]}"
+      WIRED_SENSOR_LABELS[$ii]="${WIRED_SENSORS[$ii]}"
     fi
-  printf "%s Temperature %0.2f C\n" "${WiredSensorLabels[$ii]}" "$tempscaled"
+  printf "%s Temperature %0.2f C\n" "${WIRED_SENSOR_LABELS[$ii]}" "$tempscaled"
   else
-    echo "ERROR: Cannot find sensor ${WiredSensors[$ii]}"
+    echo "ERROR: Cannot find sensor ${WIRED_SENSORS[$ii]}"
   fi
 done
 

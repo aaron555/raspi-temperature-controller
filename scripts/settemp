@@ -3,9 +3,9 @@
 # Control setpoint (stored in file 'setpoint') for use with temperature controller
 
 # Set default working directory same as this script location (containing setpoint file)
-WorkingDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+WORKING_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# See if WorkingDir is set in config file, /etc always takes precedence
+# See if WORKING_DIR is set in config file, /etc always takes precedence
 if [[ -s /etc/controller.conf ]]; then
   source "/etc/controller.conf"
 elif [[ -s config/controller.conf ]]; then
@@ -13,7 +13,7 @@ elif [[ -s config/controller.conf ]]; then
   source "config/controller.conf"
 fi
 
-DIR="${WorkingDir}"
+DIR="${WORKING_DIR}"
 
 # If no arguments are specified, read current setpoint and exit
 if [ "$#" -eq 0 ]; then
@@ -42,10 +42,10 @@ echo "${1}" >  "$DIR/setpoint"
 read setpoint <  "$DIR/setpoint"
 datestr="$(date +"%F-%T:")"
 # If log is specified in config file, output to log as well as STDOUT
-if [[ ! -z "${ControllerLogfile}" ]]; then
-  echo "$datestr Setpoint: $setpoint" >>  "${ControllerLogfile}"
+if [[ ! -z "${CONTROLLER_LOGFILE}" ]]; then
+  echo "$datestr Setpoint: $setpoint" >>  "${CONTROLLER_LOGFILE}"
   if [[ $? -ne 0 ]]; then
-    echo "WARNING: Cannot open / write to logfile ${ControllerLogfile} - check filename is correct and permissions?"
+    echo "WARNING: Cannot open / write to logfile ${CONTROLLER_LOGFILE} - check filename is correct and permissions?"
   fi
 fi
 echo "$datestr Setpoint: $setpoint"
