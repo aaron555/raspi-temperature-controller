@@ -43,6 +43,10 @@ fi
 function switch_off_and_exit {
   echo "Temperature controller terminated - checking demand is off and exiting wrapper process"
   if [[ -f /sys/class/gpio/gpio${GPIO_OUTPUT}/value ]] && [[ $(cat /sys/class/gpio/gpio${GPIO_OUTPUT}/value) = "1" ]]; then
+    if [[ -s ${CONTROLLER_LOGFILE} ]]; then
+      # If logfile exists and already has content, ensure switch-off is not missed - note this will not be logged by controller as it was terminated
+      echo "$(date +"%F-%T"): Temperature controller stopping or restarting - Switching system off" >> ${CONTROLLER_LOGFILE}
+    fi
     echo 0 > /sys/class/gpio/gpio${GPIO_OUTPUT}/value
   fi
   exit 1
@@ -52,9 +56,18 @@ function sync_to_s3 {
   # If enabled in config, sync outputs to S3
   if [[ ${ENABLE_S3_SYNC,,} = "1" ]] || [[ ${ENABLE_S3_SYNC,,} = "enabled" ]] || [[ ${ENABLE_S3_SYNC,,} = "yes" ]]; then
     # sync to s3, if error is aws cli installed, is path correct, check permissions IAM, etc
-    aws s3 sync --exclude "*" --include $(basename ${DATA_LOGFILE}) $(dirname  ${DATA_LOGFILE}) ${S3_DESTINATION_PATH}
-    aws s3 sync --exclude "*" --include $(basename ${CONTROLLER_LOGFILE}) $(dirname ${CONTROLLER_LOGFILE}) ${S3_DESTINATION_PATH}
+    ERROR_COUNTER=0
+    aws s3 sync --exclude "*" --include $(basename ${DATA_LOGFILE}) --include $(basename ${CONTROLLER_LOGFILE}) $(dirname ${CONTROLLER_LOGFILE}) ${S3_DESTINATION_PATH}
+    if [[ $? -ne 0 ]];then
+      ((ERROR_COUNTER+=1))
+    fi
     aws s3 sync ${ANALYSIS_OUTDIR} ${S3_DESTINATION_PATH}
+    if [[ $? -ne 0 ]];then
+      ((ERROR_COUNTER+=1))
+    fi
+    if [[ ${ERROR_COUNTER} -ne 0 ]]; then
+      echo "EROR: AWS S3 sync did not complete successfully - check AWS CLI is installed, configured path to destination bucket (${S3_DESTINATION_PATH}) is correct and there are rw permissions for controller on this location in AWS IAM"
+    fi
   fi
 }
 
@@ -75,11 +88,14 @@ elif [[ "${1,,}" = "control" ]]; then
   if [[ ${COOLERMODE,,} = "1" ]] || [[ ${COOLERMODE,,} = "enabled" ]] || [[ ${COOLERMODE,,} = "yes" ]]; then
     ARG_STRING+=" -c"
   fi
+  if [[ ${VERBOSE,,} = "1" ]] || [[ ${VERBOSE,,} = "enabled" ]] || [[ ${VERBOSE,,} = "yes" ]]; then
+    ARG_STRING+=" -v"
+  fi
   if [[ ! -z ${WIRED_SENSORS} ]]; then
-    ARG_STRING+=" -s ${WIRED_SENSORS[@}]}"
+    ARG_STRING+=" -s ${WIRED_SENSORS[@]}"
   fi
   if [[ ! -z ${WIRED_SENSOR_LABELS} ]]; then
-    ARG_STRING+=" -n ${WIRED_SENSOR_LABELS[@}]}"
+    ARG_STRING+=" -n ${WIRED_SENSOR_LABELS[@]}"
   fi
   if [[ ! -z ${GPIO_OUTPUT} ]]; then
     ARG_STRING+=" -g ${GPIO_OUTPUT}"

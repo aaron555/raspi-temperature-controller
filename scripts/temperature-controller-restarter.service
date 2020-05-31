@@ -1,0 +1,11 @@
+[Unit]
+Description=Automatically restarts Temperature Controller on setpoint or config change
+After=local-fs.target multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/systemctl restart temperature-controller.service
+
+[Install]
+Alias=temperature-controller-restarter.service
+WantedBy=multi-user.target

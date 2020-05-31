@@ -1,0 +1,6 @@
+[Path] 
+PathChanged=/etc/setpoint
+PathChanged=/etc/controller.conf
+
+[Install] 
+WantedBy=multi-user.target
