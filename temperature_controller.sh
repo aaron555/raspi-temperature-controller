@@ -94,9 +94,6 @@ elif [[ "${1,,}" = "control" ]]; then
   if [[ ! -z ${WIRED_SENSORS} ]]; then
     ARG_STRING+=" -s ${WIRED_SENSORS[@]}"
   fi
-  if [[ ! -z ${WIRED_SENSOR_LABELS} ]]; then
-    ARG_STRING+=" -n ${WIRED_SENSOR_LABELS[@]}"
-  fi
   if [[ ! -z ${GPIO_OUTPUT} ]]; then
     ARG_STRING+=" -g ${GPIO_OUTPUT}"
   fi
@@ -116,10 +113,16 @@ elif [[ "${1,,}" = "control" ]]; then
     ARG_STRING+=" -i ${INTERVAL}"
     # In continuous mode, need to catch CTRL-C and switch off GPIO
     echo "Starting temperature controller in continuous mode - CTRL-C to exit"
-    trap "switch_off_and_exit" SIGHUP SIGINT SIGTERM
+    trap "switch_off_and_exit" SIGHUP SIGINT # SIGTERM
+    # Note safest is to switch off on all exits, but systemctl restart sends SIGTERM which leads to annoying brief dropout in demand every time config updated
   fi
   # Call controller with configured options
-  "${SCRIPTDIR}/control_temp.py" ${ARG_STRING}
+  if [[ ! -z ${WIRED_SENSOR_LABELS} ]]; then
+    # In order to deal with channel labels with spaces, label array argument processed directly
+    "${SCRIPTDIR}/control_temp.py" ${ARG_STRING} -n "${WIRED_SENSOR_LABELS[@]}"
+  else
+    "${SCRIPTDIR}/control_temp.py" ${ARG_STRING}
+  fi
 elif [[ "${1,,}" = "analyse" ]]; then
   # Control mode - run control_temp.py
   if [[ ! -d ${ANALYSIS_OUTDIR} ]]; then
