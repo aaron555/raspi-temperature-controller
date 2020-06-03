@@ -23,15 +23,33 @@
 
 # Changelog
 # 04/11/4014 - First Version
-# 05/2020 - Removed hard-coded inputs and changed to arguments, changed default logging to CSV, added python3 compatibility, added optional continuous mode with configurable cycle interval, added support for multiple temperature sensors, added support for coolers
+# 06/2020 - Removed hard-coded inputs and changed to arguments, changed default logging to CSV, added python3 compatibility, added optional continuous mode with configurable cycle interval, added support for multiple temperature sensors, added support for coolers
 
 # Copyright (C) 2014, 2020 Aaron Lockton
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import sys
 import os
 import glob
 from time import sleep, gmtime, strftime, time
 import argparse
+
+# Exit if an error occurs, attempt to switch off demand signal
+def exit_on_error():
+  set_gpio(gpio_output,"0")
+  sys.exit(1)
 
 # Format and print/log message
 def format_print(message,verbose=None):
@@ -64,7 +82,8 @@ def configure_gpio(gpionum,direction):
     export_status = os.WEXITSTATUS(os.system('echo '+gpionum+' > /sys/class/gpio/export 2>/dev/null'))
     if export_status != 0:
       format_print("ERROR: Cannot configure GPIO "+gpionum+" is this a valid GPIO number?")
-      sys.exit(1)
+      # If error occurs, still attempt to switch off - GPIO out may already be configured if failure is setting GPIO feedback
+      exit_on_error
   # Set GPIO direction
   with open('/sys/class/gpio/gpio'+gpionum+'/direction', 'r') as f:
     current_direction = f.readline().rstrip()
@@ -76,7 +95,8 @@ def configure_gpio(gpionum,direction):
     direction_status = os.WEXITSTATUS(os.system('echo '+direction+' > /sys/class/gpio/gpio'+gpionum+'/direction 2>/dev/null'))
     if direction_status != 0:
       format_print("ERROR: Cannot set direction of GPIO "+gpionum)
-      sys.exit(1)
+      # If error occurs, still attempt to switch off - GPIO out may already be configured if failure is setting GPIO feedback
+      exit_on_error
 
 # Read GPIO value from specified GPIO
 def get_gpio(gpionum):
@@ -160,12 +180,12 @@ except:
       setpoint = float(f.readline())
   except:
     format_print("ERROR: "+setarg+" cannot be found/opened or does not contain a valid setpoint")
-    sys.exit(1)
+    exit_on_error
 
 hysteresis = args.hysteresis
 if hysteresis < 0:
   format_print("ERROR: hysteresis cannot be negative!")
-  sys.exit(1)
+  exit_on_error
 
 if args.sensorid:
   # set temp_sensor(s) to specified list - handle errors later when list iterated
@@ -175,7 +195,7 @@ else:
   sensor_list = glob.glob('/sys/devices/w1_bus_master1/28*/w1_slave')
   if not sensor_list:
     format_print("ERROR: Cannot find any 1-wire temperature sensors on 1-wire bus, ensure temperature sensor(s) are properly connected")
-    sys.exit(1)
+    exit_on_error
   temp_sensors = [ele.split('/')[4] for ele in sensor_list]
 
 if args.label:
@@ -188,7 +208,7 @@ else:
 
 if len(temp_labels) != len(temp_sensors):
   format_print("ERROR: Number of label(s) (--label) must match number of sensor(s) (--sensorid) if both arguments are specified")
-  sys.exit(1)
+  exit_on_error
 
 gpio_output = args.gpioout
 
@@ -202,7 +222,7 @@ logfile_fullpath = args.logfile
 cycle_interval = args.interval
 if cycle_interval and cycle_interval < 0:
   format_print("ERROR: interval cannot be negative!")
-  sys.exit(1)
+  exit_on_error
 
 format_print("Setpoint: "+str(setpoint)+"  Hysteresis: "+str(hysteresis)+"  Temperature sensor(s): "+','.join(temp_sensors)+"  Channel label(s): "+','.join(temp_labels), "verbose")
 
@@ -239,11 +259,11 @@ while True:
         sleep(cycle_interval)
       except KeyboardInterrupt:
         format_print("Keyboard interrupt - switching off demand and exiting temperature controller")
-        set_gpio(gpio_output,"0")
-        sys.exit(1)
+        exit_on_error
       continue
     else:
-      sys.exit(1)
+      # in one-shot mode, exit if temperature cannont be found
+      exit_on_error
 
   # Compare temperature with setpoint, set heating/cooling demand signal accordingly
   # Note empirically switch on below setpoint and off at setpoint works best for many heating systems, since reaction to demand on tends to be faster than off
@@ -304,8 +324,7 @@ while True:
         sleep(cycle_interval)
       except KeyboardInterrupt:
         format_print("Keyboard interrupt - switching off and exiting")
-        set_gpio(gpio_output,"0")
-        sys.exit(1)
+        exit_on_error
       continue
   else:
     break

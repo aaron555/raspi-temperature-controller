@@ -29,6 +29,19 @@
 
 # Copyright (C) 2020 Aaron Lockton
 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 # Source config - /etc always takes precedence
 if [[ -s /etc/controller.conf ]]; then
   source "/etc/controller.conf"
@@ -41,11 +54,11 @@ else
 fi
 
 function switch_off_and_exit {
-  echo "Temperature controller terminated - checking demand is off and exiting wrapper process"
+  echo "Temperature controller terminated/failed - checking demand is off and exiting wrapper process"
   if [[ -f /sys/class/gpio/gpio${GPIO_OUTPUT}/value ]] && [[ $(cat /sys/class/gpio/gpio${GPIO_OUTPUT}/value) = "1" ]]; then
     if [[ -s ${CONTROLLER_LOGFILE} ]]; then
       # If logfile exists and already has content, ensure switch-off is not missed - note this will not be logged by controller as it was terminated
-      echo "$(date +"%F-%T"): Temperature controller stopping or restarting - Switching system off" >> ${CONTROLLER_LOGFILE}
+      echo "$(date +"%F-%T"): Temperature controller exiting - Switching system off" >> ${CONTROLLER_LOGFILE}
     fi
     echo 0 > /sys/class/gpio/gpio${GPIO_OUTPUT}/value
   fi
@@ -122,6 +135,10 @@ elif [[ "${1,,}" = "control" ]]; then
     "${SCRIPTDIR}/control_temp.py" ${ARG_STRING} -n "${WIRED_SENSOR_LABELS[@]}"
   else
     "${SCRIPTDIR}/control_temp.py" ${ARG_STRING}
+  fi
+  if [[ $? -ne 0 ]]; then
+    # If controller exited on error, switch off
+    switch_off_and_exit
   fi
 elif [[ "${1,,}" = "analyse" ]]; then
   # Control mode - run control_temp.py
