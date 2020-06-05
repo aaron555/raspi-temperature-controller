@@ -67,19 +67,38 @@ function switch_off_and_exit {
 
 function sync_to_s3 {
   # If enabled in config, sync outputs to S3
-  if [[ ${ENABLE_S3_SYNC,,} = "1" ]] || [[ ${ENABLE_S3_SYNC,,} = "enabled" ]] || [[ ${ENABLE_S3_SYNC,,} = "yes" ]]; then
+  if [[ "${ENABLE_S3_SYNC,,}" = "1" ]] || [[ "${ENABLE_S3_SYNC,,}" = "enabled" ]] || [[ "${ENABLE_S3_SYNC,,}" = "yes" ]]; then
     # sync to s3, if error is aws cli installed, is path correct, check permissions IAM, etc
-    ERROR_COUNTER=0
-    aws s3 sync --exclude "*" --include $(basename ${DATA_LOGFILE}) --include $(basename ${CONTROLLER_LOGFILE}) $(dirname ${CONTROLLER_LOGFILE}) ${S3_DESTINATION_PATH}
-    if [[ $? -ne 0 ]];then
-      ((ERROR_COUNTER+=1))
+    if [[ "${S3_PUBLIC_ACCESS,,}" = "1" ]] || [[ "${S3_PUBLIC_ACCESS,,}" = "enabled" ]] || [[ "${S3_PUBLIC_ACCESS,,}" = "yes" ]]; then
+      ACL_ARG="--acl public-read"
+    else
+      ACL_ARG=
     fi
-    aws s3 sync ${ANALYSIS_OUTDIR} ${S3_DESTINATION_PATH}
+    echo "Attempting to sync logfiles and data to specified AWS S3 location ${S3_DESTINATION_PATH}"
+    ERROR_COUNTER=0
+    # Avoid double-copying logs if they are in same dir as analysis outputs
+    if [[ $(dirname "${DATA_LOGFILE}") != "${ANALYSIS_OUTDIR%/}" ]]; then
+      # Use sync rather than copy although clunky for a single file to prevent unecessary PUT if file not changed
+      aws s3 sync ${ACL_ARG} --exclude "*" --include $(basename "${DATA_LOGFILE}") $(dirname "${DATA_LOGFILE}") "${S3_DESTINATION_PATH}"
+      if [[ $? -ne 0 ]];then
+        ((ERROR_COUNTER+=1))
+      fi
+    fi
+    if [[ $(dirname "${CONTROLLER_LOGFILE}") != "${ANALYSIS_OUTDIR%/}" ]]; then
+      # Use sync rather than copy although clunky for a single file to prevent unecessary PUT if file not changed
+      aws s3 sync ${ACL_ARG} --exclude "*" --include $(basename "${CONTROLLER_LOGFILE}") $(dirname "${CONTROLLER_LOGFILE}") "${S3_DESTINATION_PATH}"
+      if [[ $? -ne 0 ]];then
+        ((ERROR_COUNTER+=1))
+      fi
+    fi
+    aws s3 sync ${ACL_ARG} "${ANALYSIS_OUTDIR}" "${S3_DESTINATION_PATH}"
     if [[ $? -ne 0 ]];then
       ((ERROR_COUNTER+=1))
     fi
     if [[ ${ERROR_COUNTER} -ne 0 ]]; then
-      echo "EROR: AWS S3 sync did not complete successfully - check AWS CLI is installed, configured path to destination bucket (${S3_DESTINATION_PATH}) is correct and there are rw permissions for controller on this location in AWS IAM"
+      echo "ERROR: AWS S3 sync did not complete successfully - check AWS CLI is installed, configured path to destination bucket (${S3_DESTINATION_PATH}) is correct and there are rw permissions for controller on this location in AWS IAM"
+    else
+      echo "AWS S3 sync completed"
     fi
   fi
 }
@@ -146,9 +165,30 @@ elif [[ "${1,,}" = "analyse" ]]; then
     echo "ERROR: Specified output directory for log analysis ${ANALYSIS_OUTDIR} does not exist"
     exit 1
   fi
-  ARG_STRING="${CONTROLLER_LOGFILE} $(date +%s -d ${START_DATE}) $(date +%s -d ${END_DATE}) ${ANALYSIS_OUTDIR}"
+  if [[ ! -s  ${CONTROLLER_LOGFILE} ]]; then
+    echo "ERROR: Specified log to analyse ${ANALYSIS_OUTDIR} does not exist or is empty - nothing to analyse"
+    exit 1
+  fi
+  START_ARG=$(date +%s -d "${START_DATE}")
+  if [[ ${?} -ne 0 ]]; then
+    echo "ERROR: Cannot parse specified start date ${START_DATE} - must be readable by GNU date - using default ('2020-01-01' - i.e. all available data)"
+    START_ARG=$(date +%s -d "2020-01-01")
+  fi
+  END_ARG=$(date +%s -d "${END_DATE}")
+  if [[ ${?} -ne 0 ]]; then
+    echo "ERROR: Cannot parse specified end date ${END_DATE} - must be readable by GNU date - using default ('now' - i.e. all available data)"
+    START_ARG=$(date +%s -d "now")
+  fi
+  ARG_STRING="${CONTROLLER_LOGFILE} ${START_ARG} ${END_ARG} ${ANALYSIS_OUTDIR}"
   # Call controller analysis script with configured options
   "${SCRIPTDIR}/controller_analyse.py" ${ARG_STRING}
+  # Copy latest data to consistent static filenames (no timestamps) so can easily link if published on web (e.g. via S3)
+  LATEST_CSV=$(find "${ANALYSIS_OUTDIR}" -name "????????_??????_controller_analysis.csv" | sort -n | tail -n1)
+  cp "${LATEST_CSV}" "${ANALYSIS_OUTDIR}"/controller_analysis.csv
+  LATEST_BAR=$(find "${ANALYSIS_OUTDIR}" -name "????????_??????_controller_log_plot_bar.png" | sort -n | tail -n1)
+  cp "${LATEST_BAR}" "${ANALYSIS_OUTDIR}"/controller_log_plot_bar.png
+  LATEST_CHART=$(find "${ANALYSIS_OUTDIR}" -name "????????_??????_controller_log_plot.png" | sort -n | tail -n1)
+  cp "${LATEST_CHART}" "${ANALYSIS_OUTDIR}"/controller_log_plot.png
   # Push data to AWS -if configured
   sync_to_s3
 elif [[ "${1,,}" = "sync" ]]; then

@@ -16,6 +16,12 @@ round()
 echo $(printf %.$2f $(echo "scale=$2;(((10^$2)*$1)+0.5)/(10^$2)" | bc))
 };
 
+if [[ -s "${WORKING_DIR}/setpoint" ]]; then
+  echo "Setpoint: $(cat ${WORKING_DIR}/setpoint) C"
+else
+  echo "Setpoint not found in ${WORKING_DIR}/setpoint"
+fi
+
 # If no sensors specified, find all available sensors
 if [[ -z "${WIRED_SENSORS[@]}" ]]; then
   WIRED_SENSORS=($(find /sys/devices/w1_bus_master1/ -name "28-*" 2>/dev/null | cut -d"/" -f5))
@@ -44,6 +50,12 @@ for ii in "${!WIRED_SENSORS[@]}"; do
     echo "ERROR: Cannot find sensor ${WIRED_SENSORS[$ii]}"
   fi
 done
+
+if [[ -f "/sys/class/gpio/gpio${GPIO_OUTPUT}/value" ]]; then
+  echo "Demand Status: $(cat /sys/class/gpio/gpio${GPIO_OUTPUT}/value)"
+else
+  echo "Demand status cannot be found - GPIO unconfigured"
+fi
 
 # CPU temperature (note requires sudo on older raspbian distros)
 if [[ -f /opt/vc/bin/vcgencmd ]]; then

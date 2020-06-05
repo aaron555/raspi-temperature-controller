@@ -83,7 +83,7 @@ def configure_gpio(gpionum,direction):
     if export_status != 0:
       format_print("ERROR: Cannot configure GPIO "+gpionum+" is this a valid GPIO number?")
       # If error occurs, still attempt to switch off - GPIO out may already be configured if failure is setting GPIO feedback
-      exit_on_error
+      exit_on_error()
   # Set GPIO direction
   with open('/sys/class/gpio/gpio'+gpionum+'/direction', 'r') as f:
     current_direction = f.readline().rstrip()
@@ -96,7 +96,7 @@ def configure_gpio(gpionum,direction):
     if direction_status != 0:
       format_print("ERROR: Cannot set direction of GPIO "+gpionum)
       # If error occurs, still attempt to switch off - GPIO out may already be configured if failure is setting GPIO feedback
-      exit_on_error
+      exit_on_error()
 
 # Read GPIO value from specified GPIO
 def get_gpio(gpionum):
@@ -110,7 +110,10 @@ def set_gpio(gpionum,value):
   gpionum = str(gpionum)
   if value != "0" and value != "1":
     return None
-  os.system('echo '+value+' > /sys/class/gpio/gpio'+gpionum+'/value')
+  try:
+    os.system('echo '+value+' > /sys/class/gpio/gpio'+gpionum+'/value')
+  except:
+    format_print("ERROR: Failed to set GPIO "+gpionum+" to value "+value+" - check GPIO is exported and user has permissions (in gpio group)")
 
 # Read temperature from 1-wire sensor on GPIO7 -returns None on error, or the temperature as a float
 def get_temp(devicefile):
@@ -168,6 +171,9 @@ parser.add_argument('--verbose', '-v', action='store_true',
   help='Verbose mode - if this flag is set additional messages of control process sent to STDOUT - useful for debugging')
 args = parser.parse_args()
 
+# Deal with GPIO out for demand first, since it is used in all error handling
+gpio_output = args.gpioout
+
 # Check input argumants, set defaults where necessary and validate
 setarg = args.setpoint
 try:
@@ -180,12 +186,12 @@ except:
       setpoint = float(f.readline())
   except:
     format_print("ERROR: "+setarg+" cannot be found/opened or does not contain a valid setpoint")
-    exit_on_error
+    exit_on_error()
 
 hysteresis = args.hysteresis
 if hysteresis < 0:
   format_print("ERROR: hysteresis cannot be negative!")
-  exit_on_error
+  exit_on_error()
 
 if args.sensorid:
   # set temp_sensor(s) to specified list - handle errors later when list iterated
@@ -195,7 +201,7 @@ else:
   sensor_list = glob.glob('/sys/devices/w1_bus_master1/28*/w1_slave')
   if not sensor_list:
     format_print("ERROR: Cannot find any 1-wire temperature sensors on 1-wire bus, ensure temperature sensor(s) are properly connected")
-    exit_on_error
+    exit_on_error()
   temp_sensors = [ele.split('/')[4] for ele in sensor_list]
 
 if args.label:
@@ -208,9 +214,7 @@ else:
 
 if len(temp_labels) != len(temp_sensors):
   format_print("ERROR: Number of label(s) (--label) must match number of sensor(s) (--sensorid) if both arguments are specified")
-  exit_on_error
-
-gpio_output = args.gpioout
+  exit_on_error()
 
 if args.gpiofeedback:
   gpio_feedback = args.gpiofeedback
@@ -222,7 +226,7 @@ logfile_fullpath = args.logfile
 cycle_interval = args.interval
 if cycle_interval and cycle_interval < 0:
   format_print("ERROR: interval cannot be negative!")
-  exit_on_error
+  exit_on_error()
 
 format_print("Setpoint: "+str(setpoint)+"  Hysteresis: "+str(hysteresis)+"  Temperature sensor(s): "+','.join(temp_sensors)+"  Channel label(s): "+','.join(temp_labels), "verbose")
 
@@ -259,11 +263,11 @@ while True:
         sleep(cycle_interval)
       except KeyboardInterrupt:
         format_print("Keyboard interrupt - switching off demand and exiting temperature controller")
-        exit_on_error
+        exit_on_error()
       continue
     else:
       # in one-shot mode, exit if temperature cannont be found
-      exit_on_error
+      exit_on_error()
 
   # Compare temperature with setpoint, set heating/cooling demand signal accordingly
   # Note empirically switch on below setpoint and off at setpoint works best for many heating systems, since reaction to demand on tends to be faster than off
@@ -324,7 +328,7 @@ while True:
         sleep(cycle_interval)
       except KeyboardInterrupt:
         format_print("Keyboard interrupt - switching off and exiting")
-        exit_on_error
+        exit_on_error()
       continue
   else:
     break

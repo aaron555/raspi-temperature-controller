@@ -7,6 +7,8 @@ ExecStart=/opt/scripts/temperature-controller/temperature_controller.sh control 
 Restart=on-failure
 Restart=always
 RestartSec=10
+User=tempctl
+Group=tempctl
 
 [Install]
 Alias=temperature-controller.service
