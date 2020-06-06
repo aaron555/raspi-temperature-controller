@@ -42,6 +42,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+# Allow all group users to write to files created by this script
+umask 002
+
 # Source config - /etc always takes precedence
 if [[ -s /etc/controller.conf ]]; then
   source "/etc/controller.conf"

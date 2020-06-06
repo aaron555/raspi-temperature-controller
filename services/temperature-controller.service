@@ -9,6 +9,7 @@ Restart=always
 RestartSec=10
 User=tempctl
 Group=tempctl
+UMask=0002
 
 [Install]
 Alias=temperature-controller.service

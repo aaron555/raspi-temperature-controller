@@ -49,6 +49,9 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
+# Allow all group users to write to files created by this script
+os.umask(002)
+
 print(strftime("%Y-%m-%d-%H:%M:%S: Starting temperature controller log analysis", gmtime()))
 # Set defaults
 if len(sys.argv) < 2:

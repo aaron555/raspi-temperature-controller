@@ -46,6 +46,9 @@ import glob
 from time import sleep, gmtime, strftime, time
 import argparse
 
+# Allow all group users to write to files created by this script
+os.umask(002)
+
 # Exit if an error occurs, attempt to switch off demand signal
 def exit_on_error():
   set_gpio(gpio_output,"0")
@@ -260,9 +263,13 @@ while True:
     if cycle_interval:
       # In continuous mode, wait for next cycle and try again
       try:
+        # Note for controller analyse must contain exact string "Switching system off"
+        format_print("Switching system off and wating for retry next cycle")
+        set_gpio(gpio_output,"0")
         sleep(cycle_interval)
       except KeyboardInterrupt:
-        format_print("Keyboard interrupt - switching off demand and exiting temperature controller")
+        # Note for controller analyse must contain exact string "Switching system off"
+        format_print("Keyboard interrupt - Switching system off demand and exiting temperature controller")
         exit_on_error()
       continue
     else:
@@ -284,6 +291,7 @@ while True:
   if above:
     format_print("Demand required, checking if system is on", "verbose")
     if status == 0:
+      # Note for controller analyse must contain exact string "Switching system on"
       status_message=("Setpoint=%s, Actual=%s - Switching system on" % (setpoint, current_temp))
       format_print(status_message)
       set_gpio(gpio_output,"1")
@@ -291,6 +299,7 @@ while True:
   elif below:
     format_print("Demand not required, checking if system is on", "verbose")
     if status == 1:
+      # Note for controller analyse must contain exact string "Switching system off"
       status_message=("Setpoint=%s, Actual=%s - Switching system off" % (setpoint, current_temp))
       format_print(status_message)
       set_gpio(gpio_output,"0")
@@ -327,7 +336,8 @@ while True:
       try:
         sleep(cycle_interval)
       except KeyboardInterrupt:
-        format_print("Keyboard interrupt - switching off and exiting")
+        # Note for controller analyse must contain exact string "Switching system off"
+        format_print("Keyboard interrupt - Switching system off and exiting")
         exit_on_error()
       continue
   else:
