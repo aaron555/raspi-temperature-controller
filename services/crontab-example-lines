@@ -1,0 +1,22 @@
+# Example lines to add to system crontab to automate common Temperature Controller tasks
+# Some or all of these lines may be added to /etc/crontab dependent on exact application
+
+# m h dom mon dow user  command
+
+# setpoint scheduling - example below sets central heating system setpoints for ON/OFF for weekdays, weekends and all days
+30 6 * * 1-5 tempctl /opt/scripts/temperature-controller/temperature_controller.sh set 20
+0 8 * * 1-5 tempctl /opt/scripts/temperature-controller/temperature_controller.sh set 19
+0 17 * * * tempctl /opt/scripts/temperature-controller/temperature_controller.sh set 21
+0 22 * * * tempctl /opt/scripts/temperature-controller/temperature_controller.sh set 19
+0 9 * * 6,7 tempctl /opt/scripts/temperature-controller/temperature_controller.sh set 20
+0 13 * * 6,7 tempctl /opt/scripts/temperature-controller/temperature_controller.sh set 19
+
+# Run Controller once per minute - NOTE THIS SHOULD ONLY BE USED IF NOT RUNNING AS A SERVICE VIA SYSTEMCTL (DEFAULT)
+* * * * * tempctl /opt/scripts/temperature-controller/temperature_controller.sh control
+
+# Run controller analysis once per day - just after midnight to add each complete day - note this also syncs to AWS S3 if enabled in config
+3 0 * * * tempctl /opt/scripts/temperature-controller/temperature_controller.sh analyse
+
+# Run AWS S3 sync - note this is always run by analyse above, but may also be called more frequently if required, or if analyse is not being used (if only controller log and temperature data is required)
+# WARNING - RUNNING THIS TOO FREQUENTLY COULD RESULT IN A LARGE AWS BILL!  Example below runs once per hour.  Note this will only run if S3 push if enabled in config
+0 * * * * tempctl /opt/scripts/temperature-controller/temperature_controller.sh sync
