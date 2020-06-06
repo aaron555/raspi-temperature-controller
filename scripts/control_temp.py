@@ -47,11 +47,13 @@ from time import sleep, gmtime, strftime, time
 import argparse
 
 # Allow all group users to write to files created by this script
-os.umask(002)
+oldmask = os.umask(0o002)
 
 # Exit if an error occurs, attempt to switch off demand signal
 def exit_on_error():
   set_gpio(gpio_output,"0")
+  # Put back umask
+  os.umask(oldmask)
   sys.exit(1)
 
 # Format and print/log message
@@ -342,3 +344,6 @@ while True:
       continue
   else:
     break
+
+# Put back umask
+os.umask(oldmask)

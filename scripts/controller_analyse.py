@@ -50,7 +50,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 # Allow all group users to write to files created by this script
-os.umask(002)
+oldmask = os.umask(0o002)
 
 print(strftime("%Y-%m-%d-%H:%M:%S: Starting temperature controller log analysis", gmtime()))
 # Set defaults
@@ -90,12 +90,16 @@ for line in raw_log:
 end_time = calendar.timegm(time.strptime(raw_log[-1][0:10], "%Y-%m-%d"))
 if not start_time or not end_time:
   print("ERROR: logfile does not appear to contain at least one valid switch on and switch off event" )
+  # Put back umask
+  os.umask(oldmask)
   sys.exit(1)
 print("Log file covers %s to %s" % (raw_log[0][0:19], raw_log[-1][0:19]))
 print("Log file can be analysed from from %s to %s" % (strftime("%Y-%m-%d_%H:%M:%S", gmtime(start_time)), strftime("%Y-%m-%d-%H:%M:%S", gmtime(end_time))))
 num_days = int((end_time - start_time) / 86400)
 if num_days < 1:
   print("ERROR: logfile contains insufficient data - require at least one full day of data, including two midnight crossings at start and end" )
+  # Put back umask
+  os.umask(oldmask)
   sys.exit(1)
 end_time_log = end_time
 print("Total %s log lines, %d full days in log" % (len(raw_log), num_days))
@@ -198,6 +202,8 @@ elif "Switching system off" in last_status_change_line:
   status_end_analysis = 0
 else:
   print("ERROR: invalid last switching line: " + last_status_change_line)
+  # Put back umask
+  os.umask(oldmask)
   sys.exit(1)
 if status_list[-1] == "-1":
   index = ii+1
@@ -313,4 +319,6 @@ dateFmt = matplotlib.dates.DateFormatter('%Y-%m-%d')
 ax.xaxis.set_major_formatter(dateFmt)
 plt.savefig(file_timestamp+"_controller_log_plot.png", format='png', dpi=300)
 
+# Put back umask
+os.umask(oldmask)
 print(strftime("%Y-%m-%d-%H:%M:%S: Completed temperature controller log analysis", gmtime()))
