@@ -103,6 +103,8 @@ function sync_to_s3 {
     else
       echo "AWS S3 sync completed"
     fi
+  else
+    echo "AWS S3 sync is not enabled - it is only carried out if enabled in system config"
   fi
 }
 
