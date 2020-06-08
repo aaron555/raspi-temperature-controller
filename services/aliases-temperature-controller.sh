@@ -1,9 +1,8 @@
 # Aliases for temperature controller - to be placed in /etc/profile.d
-source /etc/controller.conf
-if [[ ! -f ${SCRIPTDIR}/temperature_controller.sh ]]; then
-  # Set default location for scripts
-  ${SCRIPTDIR}=/opt/scripts/temperature-controller
-fi
+
+# Set default location for scripts - note if running multiple control processes there may be multiple dirs
+${SCRIPTDIR}=/opt/scripts/temperature-controller
+
 alias s="${SCRIPTDIR}/temperature_controller.sh set"
 alias g="${SCRIPTDIR}/temperature_controller.sh get"
 alias a="${SCRIPTDIR}/temperature_controller.sh analyse"
