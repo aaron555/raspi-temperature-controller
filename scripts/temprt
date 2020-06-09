@@ -33,7 +33,6 @@ if [[ -z "${WIRED_SENSORS[@]}" ]]; then
   echo "WARNING: No 1-wire temperature sensors specified / found"
 fi
 
-date=$(date)
 scale=1000
 
 # 1-wire Dallas temperature sensors

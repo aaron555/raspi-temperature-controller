@@ -61,7 +61,7 @@ function switch_off_and_exit {
   if [[ -f /sys/class/gpio/gpio${GPIO_OUTPUT}/value ]] && [[ $(cat /sys/class/gpio/gpio${GPIO_OUTPUT}/value) = "1" ]]; then
     if [[ -s ${CONTROLLER_LOGFILE} ]]; then
       # If logfile exists and already has content, ensure switch-off is not missed - note this will not be logged by controller as it was terminated
-      echo "$(date +"%F-%T"): Temperature controller exiting - Switching system off" >> ${CONTROLLER_LOGFILE}
+      echo "$(date -u +"%F-%T"): Temperature controller exiting - Switching system off" >> ${CONTROLLER_LOGFILE}
     fi
     echo 0 > /sys/class/gpio/gpio${GPIO_OUTPUT}/value
   fi
@@ -174,15 +174,15 @@ elif [[ "${1,,}" = "analyse" ]]; then
     echo "ERROR: Specified log to analyse ${ANALYSIS_OUTDIR} does not exist or is empty - nothing to analyse"
     exit 1
   fi
-  START_ARG=$(date +%s -d "${START_DATE}")
+  START_ARG=$(date -u +%s -d "${START_DATE}")
   if [[ ${?} -ne 0 ]]; then
     echo "ERROR: Cannot parse specified start date ${START_DATE} - must be readable by GNU date - using default ('2020-01-01' - i.e. all available data)"
-    START_ARG=$(date +%s -d "2020-01-01")
+    START_ARG=$(date -u +%s -d "2020-01-01")
   fi
-  END_ARG=$(date +%s -d "${END_DATE}")
+  END_ARG=$(date -u +%s -d "${END_DATE}")
   if [[ ${?} -ne 0 ]]; then
     echo "ERROR: Cannot parse specified end date ${END_DATE} - must be readable by GNU date - using default ('now' - i.e. all available data)"
-    START_ARG=$(date +%s -d "now")
+    START_ARG=$(date -u +%s -d "now")
   fi
   ARG_STRING="${CONTROLLER_LOGFILE} ${START_ARG} ${END_ARG} ${ANALYSIS_OUTDIR}"
   # Call controller analysis script with configured options
