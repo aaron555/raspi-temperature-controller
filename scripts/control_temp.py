@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 
-# Simple binary temperature controller for Raspberry Pi with configurable hysteresis and logging of control and data
+# Simple binary temperature controller for Raspberry Pi and 1-wire sensors with logging of control and data
+
+# SYNTAX: ./control_temp.py <Setpoint> [<optional arguments...>]
+
+# EXAMPLE CALLS
+# ./control_temp.py 27
+# ./control_temp.py setpoint --verbose --logfile mylog.csv -s 28-0300a2796e9e 28-0300a279f011 -n "Channel 1" "Channel 2" -i 10 -t 0.2 -m /var/log/temperature-controller/control_temp.log
 
 # INPUTS:
 # <Setpoint> must be specified - may be either a Temperature in (C) or a string containing path to a file containing this value
@@ -8,21 +14,18 @@
 # ./control_temp.py -h for a list of supported input arguments
 
 # OUTPUTS:
-# Demand signal set on selected GPIO pin
-# All changes in status with inputs to STDOUT. This can be stored in log and analysed with controller_analyse.py to create daily plots of demand/stats
-# (STDOUT messages are tagged with WARNING:/ERROR: for non-critical/critical exceptions respectively, and DEBUG: for additional messages in --verbose mode)
-# Timestamped logfile with setpoint, measured temperature and status.  Default is Excel friendly CSV.  Includes all measured temperatures, and optionally user specified channel labels in header
+# Demand signal will be set on selected GPIO pin
+# Timestamped logfile with setpoint, all measured temperature(s) and demand status.  Default is Excel friendly CSV with optionally user specified channel labels in header
+# All changes in status to STDOUT, and if specified also to controller logfile
+# Note: The controller logfile can be analysed with controller_analyse.py to create daily plots of demand/stats
+# Note: messages to controller log/STDOUT are tagged with WARNING:/ERROR: for non-critical/critical exceptions respectively, and DEBUG: for additional messages in --verbose mode
 
-# EXAMPLE CALLS
-# ./control_temp.py 27 >> /home/aaron/control_temp.log
-# ./control_temp.py setpoint --verbose --logfile mylog.csv -s 28-0300a2796e9e 28-0300a279f011 -n "Channel 1" "Channel 2" -i 10 -t 0.2
-
-# NOTE if multiple temperature sensors (--sensorid) are specified, the first sensor in the list will always be used for control, but all will be read and logged
+# If multiple temperature sensors (--sensorid) are specified, the first sensor in the list will always be used for control, but all will be read and logged
 # If labels (--label) are also specified, the number of labels specified must match the number of sensors (--sensorid)
-# For multi-channel temperature control (multiple outputs), run a separate instance of this script for each channel, specifying appropriate temperature sensor input and GPIO output, logfile (optionally channel name) for each
+# For multi-channel temperature control (multiple outputs), run a separate instance of this script for each channel, specifying appropriate temperature sensor input and GPIO output, logfile, optionally channel name, etc for each channel
 
-# Changelog
-# 04/11/4014 - First Version
+# CHANGELOG
+# 11/2014 - First Version
 # 06/2020 - Removed hard-coded inputs and changed to arguments, changed default logging to CSV, added python3 compatibility, added optional continuous mode with configurable cycle interval, added support for multiple temperature sensors, added support for coolers
 
 # Copyright (C) 2014, 2020 Aaron Lockton

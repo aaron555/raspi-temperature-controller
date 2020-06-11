@@ -1,25 +1,30 @@
 #!/usr/bin/env python3
 
-# Analyse temperature controller log-files produced by control_temp.py
+# Analyse temperature controller log-files produced by control_temp.py, generating daily stats and charts
 
-# Syntax: ./controller_analyse.py [<full filename and path of log> <start time> <end time> <output directory>]
+# SYNTAX: ./controller_analyse.py [<full filename and path of log> <start time> <end time> <output directory>]
 
-# All arguments are optional
+# EXAMPLE CALLS
+# ./controller_analyse.py /var/log/temperature-controller/control_temp.log "2020-01-01" "2020-04-01" /var/log/temperature-controller
+
+# INPUTS (all arguments are optional)
 # If <full filename and path of log> is not specified default /var/log/control_temp.log
 # If <start time> is not specified default [midnight at end of day on which first switching event occurs]
 # If <end time> is not specified default [midnight at start of last day in log]
 # If <output directory> is outputs will be written to directory from which script is run
 
-# Note start and end times MUST be either a string in the form YYYY-MM-DD or an integer unix timestamp
+# Note start and end times MUST be either a string in the form YYYY-MM-DD OR an integer unix timestamp (epoch time)
 # Invalid start or end times will be ignored (default of all available data used)
-# Note if the end date is later than end of log, it will be assumed system status is held from end of log to requested end
+# Note if the end date is later than end of log, it will be assumed system status is held from end of log to requested end of analysis
+# Note the temperature controller uses UTC throughout
 
-# Outputs: CSV file with amount of time system on (in hours and %) for each day
-# Plot and bar chart of hours on each day
+# OUTPUTS
+# CSV file with amount of time system "on" (in hours and %) for each day
+# Plot and bar chart of hours "on" each day
 
-# Changelog
+# CHANGELOG
 # 2015 - First Version
-# 19/04/2020 - Fixed bug with analysis of days after log ends, changed CSV to 2 d.p., added python3 compatibility
+# 06/2020 - Fixed bug with analysis of days after log ends, changed CSV to 2 d.p., added python3 compatibility
 
 # Copyright (C) 2015, 2020 Aaron Lockton
 

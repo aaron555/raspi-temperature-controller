@@ -1,5 +1,6 @@
 # Example lines to add to system crontab to automate common Temperature Controller tasks
 # Some or all of these lines may be added to /etc/crontab dependent on exact application
+# Logs all outputs and errors to /var/log/controller-status.log - note this should be rotated using logrotate-controller-analysis
 
 # m h dom mon dow user  command
 

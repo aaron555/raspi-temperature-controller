@@ -1,6 +1,6 @@
 #! /bin/bash
 
-# Wrapper process around various temperature controller scripts to enable convenient control of controller and logs
+# Wrapper process around various Raspberry Pi temperature controller scripts to enable convenient control of controller and logs
 
 # SYNTAX: ./temperature_controller.sh <function> [<function argument>]
 
@@ -24,8 +24,8 @@
 # OUTPUTS
 # (See individual scripts called for full details of outputs)
 
-# Changelog
-# 05/2020 - First Version
+# CHANGELOG
+# 06/2020 - First Version
 
 # Copyright (C) 2020 Aaron Lockton
 

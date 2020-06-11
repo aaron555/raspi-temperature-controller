@@ -2,6 +2,40 @@
 
 # Control setpoint (stored in file 'setpoint') for use with temperature controller
 
+# SYNTAX: ./settemp [<setpoint>]
+
+# EXAMPLE CALLS
+# ./settemp 20.5
+
+# INPUTS
+# Optionally specify setpoint in degrees (C) as a float or integer to set new setpoint
+# If no input argument specified, reads back current setpoint
+# Uses configured location for setpoint file and logfile in /etc/controller.conf (this will take precedence) if not present config/controller.conf will be used
+# If neither config file exists or contains setpoint location, the directory in which script is located will be used for setpoint file
+
+# OUTPUTS
+# Returns current/newly set setpoint to STDOUT and configured controller logfile with timestamps
+
+# Changelog
+# 2014 - First Version
+# 06/2020 - Improved error handling and configuration from file, updated config keys
+
+# Copyright (C) 2014, 2020 Aaron Lockton
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+
 # Allow all group users to write to files created by this script
 umask 002
 
