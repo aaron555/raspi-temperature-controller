@@ -156,11 +156,15 @@ chown tempctl:tempctl /var/log/temperature-controller
 handle_warning $? "Couldn't set owner of output dir"
 chmod 775 /var/log/temperature-controller
 handle_warning $? "Couldn't set mode (permissions) of output dir"
-cp outputs/* /var/log/temperature-controller
+# Check if there's any existing files in output directory
+if [[ $(ls -A /var/log/temperature-controller) ]]; then
+  handle_warning "1" "Output directory /var/log/temperature-controller contains files - these will not be overwritten - For a clean install remove all existing files"
+fi
+cp -n outputs/* /var/log/temperature-controller
 handle_warning $? "Couldn't copy content to output dir"
 chown tempctl:tempctl /var/log/temperature-controller/*
 handle_warning $? "Couldn't set owner of output dir contents"
-chmod  644 /var/log/temperature-controller/*
+chmod  664 /var/log/temperature-controller/*
 handle_warning $? "Couldn't set mode (permissions) output dir contents"
 rm /var/log/temperature-controller/readme.txt
 handle_warning $? "Couldn't crete setpoint file"
@@ -172,8 +176,13 @@ handle_warning $? "Couldn't set mode (permissions) setpoint file"
 
 ## Setup crontab and logging - note lines are added but commented for user to uncomment / modify as required
 echo "Adding example lines to crontab for automation (commented - edit and uncomment ton enable) and associated logging"
-sed -e "0,/# m h dom mon dow user/d" services/crontab-example-lines | sed -e "s/^\([^#].*\)/# \1/g" >> /etc/crontab
-handle_warning $? "Couldn't add example lines to crontab"
+# Check if lines already exist in crontab - in which case do not copy anything to prevent bloating crontab
+if grep temperature_controller.sh /etc/crontab 2>&1 >/dev/null; then
+  handle_warning "1" "/etc/crontab already contains lines relating to temperature_controller.sh - not adding.  For a clean install remove all existing lines first"
+else
+  sed -e "0,/# m h dom mon dow user/d" services/crontab-example-lines | sed -e "s/^\([^#].*\)/# \1/g" >> /etc/crontab
+  handle_warning $? "Couldn't add example lines to crontab"
+fi
 touch /var/log/controller-status.log
 handle_warning $? "Couldn't create controller status log"
 chown tempctl:tempctl /var/log/controller-status.log
@@ -231,9 +240,9 @@ echo " -  Edit settings in /etc/controller.conf"
 echo " -  Set setpoint temperature using 's' command"
 echo " -  To get current temperatures use 'g' command"
 echo " -  Run log analysis with 'a' and s3 sync (if enabled in config) with 's3'"
+echo " -  Note it will be necesary to log out and back in to enable above commands (aliases)"
 echo ""
 echo "Installer exiting"
 
 # *** check raspi3 history log
-# *** double check all owners (user/group) and mode set on all moved/created files/dirs (most should be tempctl:tempctl and group writeable)
-# *** check all required files/dirs created if tempctl/interactive user won't have permissions to create automatically
+
