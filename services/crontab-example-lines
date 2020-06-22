@@ -12,7 +12,7 @@
 0 9 * * 6,7 tempctl /opt/scripts/temperature-controller/temperature_controller.sh set 20 2>&1 | sed -e "s/^/$(date -u +\%F-\%T:) SET /" >> /var/log/controller-status.log
 0 13 * * 6,7 tempctl /opt/scripts/temperature-controller/temperature_controller.sh set 19 2>&1 | sed -e "s/^/$(date -u +\%F-\%T:) SET /" >> /var/log/controller-status.log
 
-# Run Controller once per minute - NOTE THIS SHOULD ONLY BE USED IF NOT RUNNING AS A SERVICE VIA SYSTEMCTL (DEFAULT)
+# Run Controller once per minute - NOTE THIS SHOULD NORMALLY BE LEFT COMMENTED -  ONLY USE IF NOT RUNNING AS A SERVICE VIA SYSTEMCTL
 * * * * * tempctl /opt/scripts/temperature-controller/temperature_controller.sh control 2>&1 | sed -e "s/^/$(date -u +\%F-\%T:) CONTROL /" >> /var/log/controller-status.log
 
 # Run controller analysis once per day - just after midnight to add each complete day - note this also syncs to AWS S3 if enabled in config

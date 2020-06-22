@@ -2,15 +2,16 @@
 
 # Installs Raspberry Pi Temperature controller and dependencies, sets up baseline config, services, aliases and working directories
 
-# SYNTAX: ./install.sh
+# SYNTAX: ./install.sh [-y]
 
 # EXAMPLE CALLS
-# sudo ./install.sh
+# sudo ./install.sh -y
 
 # INPUTS
-# Accepts no input arguments
-# Requires root permissions to run
+# Optionally give argument '-y' to run without user confirmation to proceed with install
+# Requires root permissions
 # If an existing config file exists /etc/controller.conf it will not be overwritten, however contents will be ignored and default paths used
+# Similarly, no existing files in /var/log/temperature-controller will be overwritten, and example lines not added to crontab if already present
 
 # OUTPUTS
 # Summary to STDOUT, including if all tasks completed successfully or if warnings occured
@@ -60,10 +61,12 @@ trap "exit_on_error 1 'Installation cancelled by user - NOTE INSTALL WAS NOT COM
 
 echo "---------------------------------------------------------------------------"
 echo "Starting 'raspi-temperature-controller' install process"
-echo "Do you wish to install Raspberry Pi Simple Temperature Controller? (y/n)"
-read USER_INPUT
-if [[ ! "${USER_INPUT}" =~ ^[Yy]$ ]]; then
-    exit_on_error 1 "Operation cancelled"
+if [[ "${1}" != "-y" ]]; then
+  echo "Do you wish to install Raspberry Pi Simple Temperature Controller? (y/n)"
+  read USER_INPUT
+  if [[ ! "${USER_INPUT}" =~ ^[Yy]$ ]]; then
+      exit_on_error 1 "Operation cancelled"
+  fi
 fi
 
 ## Check system
@@ -81,6 +84,7 @@ apt-get update
 handle_warning $? "Could not update apt repo"
 apt-get install -y bc python3-pip awscli
 handle_warning $? "Could not install dependencies: bc python3-pip awscli"
+# Note it is acceptable to install legit modules such as matplotlib as root with pip - it must be available for all users
 pip3 install matplotlib
 handle_warning $? "Could not install dependencies: Python module matplotlib"
 
@@ -241,6 +245,7 @@ echo " -  Set setpoint temperature using 's' command"
 echo " -  To get current temperatures use 'g' command"
 echo " -  Run log analysis with 'a' and s3 sync (if enabled in config) with 's3'"
 echo " -  Note it will be necesary to log out and back in to enable above commands (aliases)"
+echo " -  Edit and uncomment lines in /etc/crontab as required to automate setpoint, analysis, S3 push"
 echo ""
 echo "Installer exiting"
 
