@@ -82,7 +82,8 @@ fi
 echo "Installing dependencies - this requires an internet connection and may take some time..."
 apt-get update
 handle_warning $? "Could not update apt repo"
-apt-get install -y bc python3-pip awscli
+# Note libatlas-base-dev required to solve missing dependency with matplotlib installed using pip on Raspberry Pi - https://numpy.org/devdocs/user/troubleshooting-importerror.html
+apt-get install -y bc python3-pip libatlas-base-dev awscli
 handle_warning $? "Could not install dependencies: bc python3-pip awscli"
 # Note it is acceptable to install legit modules such as matplotlib as root with pip - it must be available for all users
 pip3 install matplotlib
@@ -92,10 +93,17 @@ handle_warning $? "Could not install dependencies: Python module matplotlib"
 echo "Setting up users and groups"
 useradd -r tempctl
 handle_warning $? "Could not create system user 'tempctl'"
+# Add controller and interactive user to gpio group to allow setting demand signal
 adduser tempctl gpio
 handle_warning $? "Could not add user 'tempctl' to 'gpio' group to allow controller to set demand signal"
 adduser "$(logname)" gpio
 handle_warning $? "Could not add user $(logname) to 'gpio' group to allow interactive running of controller"
+# Add controller and interactive user to video group to allow getting CPU temperature
+adduser tempctl video
+handle_warning $? "Could not add user 'tempctl' to 'video' group to allow controller to set demand signal"
+adduser "$(logname)" video
+handle_warning $? "Could not add user $(logname) to 'video' group to allow interactive running of controller"
+# Add interactive user to controller group to allow access to setpoint, logfiles etc for running controller functions from command line
 adduser "$(logname)" tempctl
 handle_warning $? "Could not add user $(logname) to 'tempctl' group to allow interactive running of controller"
 
@@ -244,10 +252,7 @@ echo " -  Edit settings in /etc/controller.conf"
 echo " -  Set setpoint temperature using 's' command"
 echo " -  To get current temperatures use 'g' command"
 echo " -  Run log analysis with 'a' and s3 sync (if enabled in config) with 's3'"
-echo " -  Note it will be necesary to log out and back in to enable above commands (aliases)"
+echo " -  (Note it will be necesary to log out and back in to enable commands (aliases) and apply user/group changes)"
 echo " -  Edit and uncomment lines in /etc/crontab as required to automate setpoint, analysis, S3 push"
 echo ""
 echo "Installer exiting"
-
-# *** check raspi3 history log
-
