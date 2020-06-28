@@ -31,9 +31,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
-# Source config - /etc always takes precedence
-if [[ -s /etc/controller.conf ]]; then
+# Source config, ENV always takes precedence
+if [[ -s ${CONFIG_FILE} ]]; then
+  source ${CONFIG_FILE}
+elif [[ -s /etc/controller.conf ]]; then
+  # IF no config in ENV, /etc/ takes precedence
   source "/etc/controller.conf"
 elif [[ -s config/controller.conf ]]; then
   # Try relative path if being run straight from repo - only works if running from repo root
@@ -46,10 +48,10 @@ round()
 echo $(printf %.$2f $(echo "scale=$2;(((10^$2)*$1)+0.5)/(10^$2)" | bc))
 };
 
-if [[ -s "${WORKING_DIR}/setpoint" ]]; then
-  echo "Setpoint: $(cat ${WORKING_DIR}/setpoint) C"
+if [[ -s "${SETPOINT_FILE}" ]]; then
+  echo "Setpoint: $(cat ${SETPOINT_FILE}) C"
 else
-  echo "Setpoint not found in ${WORKING_DIR}/setpoint"
+  echo "Setpoint not found in ${SETPOINT_FILE}"
 fi
 
 # If no sensors specified, find all available sensors

@@ -45,8 +45,11 @@
 # Allow all group users to write to files created by this script
 umask 002
 
-# Source config - /etc always takes precedence
-if [[ -s /etc/controller.conf ]]; then
+# Source config, ENV always takes precedence
+if [[ -s ${CONFIG_FILE} ]]; then
+  source ${CONFIG_FILE}
+elif [[ -s /etc/controller.conf ]]; then
+  # IF no config in ENV, /etc/ takes precedence
   source "/etc/controller.conf"
 elif [[ -s config/controller.conf ]]; then
   # Try relative path if being run straight from repo -only works if running from repo root
@@ -99,7 +102,7 @@ function sync_to_s3 {
       ((ERROR_COUNTER+=1))
     fi
     if [[ ${ERROR_COUNTER} -ne 0 ]]; then
-      echo "ERROR: AWS S3 sync did not complete successfully - check AWS CLI is installed, configured path to destination bucket (${S3_DESTINATION_PATH}) is correct and there are rw permissions for controller on this location in AWS IAM"
+      echo "ERROR: AWS S3 sync did not complete successfully - check internet connection, AWS CLI is installed, configured path to destination bucket (${S3_DESTINATION_PATH}) is correct and there are rw permissions for controller on this location in AWS IAM"
     else
       echo "AWS S3 sync completed"
     fi
@@ -118,7 +121,7 @@ elif [[ "${1,,}" = "get" ]]; then
 elif [[ "${1,,}" = "control" ]]; then
   # Control mode - run control_temp.py
   ARG_STRING=
-  ARG_STRING+="${WORKING_DIR}/setpoint"
+  ARG_STRING+="${SETPOINT_FILE}"
   if [[ ! -z ${HYTERESIS} ]]; then
     ARG_STRING+=" -t ${HYTERESIS}"
   fi
@@ -187,14 +190,19 @@ elif [[ "${1,,}" = "analyse" ]]; then
   ARG_STRING="${CONTROLLER_LOGFILE} ${START_ARG} ${END_ARG} ${ANALYSIS_OUTDIR}"
   # Call controller analysis script with configured options
   "${SCRIPTDIR}/controller_analyse.py" ${ARG_STRING}
-  # Copy latest data to consistent static filenames (no timestamps) so can easily link if published on web (e.g. via S3)
-  LATEST_CSV=$(find "${ANALYSIS_OUTDIR}" -name "????????_??????_controller_analysis.csv" | sort -n | tail -n1)
-  cp "${LATEST_CSV}" "${ANALYSIS_OUTDIR}"/controller_analysis.csv
-  LATEST_BAR=$(find "${ANALYSIS_OUTDIR}" -name "????????_??????_controller_log_plot_bar.png" | sort -n | tail -n1)
-  cp "${LATEST_BAR}" "${ANALYSIS_OUTDIR}"/controller_log_plot_bar.png
-  LATEST_CHART=$(find "${ANALYSIS_OUTDIR}" -name "????????_??????_controller_log_plot.png" | sort -n | tail -n1)
-  cp "${LATEST_CHART}" "${ANALYSIS_OUTDIR}"/controller_log_plot.png
-  # Push data to AWS -if configured
+  if [[ ${?} -eq 0 ]]; then
+    # Copy latest data to consistent static filenames (no timestamps) so can easily link if published on web (e.g. via S3)
+    LATEST_CSV=$(find "${ANALYSIS_OUTDIR}" -name "????????_??????_controller_analysis.csv" | sort -n | tail -n1)
+    cp "${LATEST_CSV}" "${ANALYSIS_OUTDIR}"/controller_analysis.csv
+    LATEST_BAR=$(find "${ANALYSIS_OUTDIR}" -name "????????_??????_controller_log_plot_bar.png" | sort -n | tail -n1)
+    cp "${LATEST_BAR}" "${ANALYSIS_OUTDIR}"/controller_log_plot_bar.png
+    LATEST_CHART=$(find "${ANALYSIS_OUTDIR}" -name "????????_??????_controller_log_plot.png" | sort -n | tail -n1)
+    cp "${LATEST_CHART}" "${ANALYSIS_OUTDIR}"/controller_log_plot.png
+    # Push data to AWS -if configured
+  else
+    # Analysis did not complete successfully, no outputs to copy
+    echo "WARNING: controller analysis did not complete successfully, ignoring outputs"
+  fi
   sync_to_s3
 elif [[ "${1,,}" = "sync" ]]; then
   sync_to_s3

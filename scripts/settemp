@@ -39,27 +39,29 @@
 # Allow all group users to write to files created by this script
 umask 002
 
-# Set default working directory same as this script location (containing setpoint file)
-WORKING_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Set default working directory for setpoint - same as this script location (containing setpoint file)
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+SETPOINT_FILE=${DIR}/setpoint
 
-# See if WORKING_DIR is set in config file, /etc always takes precedence
-if [[ -s /etc/controller.conf ]]; then
+# See if SETPOINT_FILE is set in config file, ENV always takes precedence
+if [[ -s ${CONFIG_FILE} ]]; then
+  source ${CONFIG_FILE}
+elif [[ -s /etc/controller.conf ]]; then
+  # IF no config in ENV, /etc/ takes precedence
   source "/etc/controller.conf"
 elif [[ -s config/controller.conf ]]; then
   # Try relative path if being run straight from repo- only works if running from repo root
   source "config/controller.conf"
 fi
 
-DIR="${WORKING_DIR}"
-
 # If no arguments are specified, read current setpoint and exit
 if [ "$#" -eq 0 ]; then
-  if [[ -s "$DIR/setpoint" ]]; then
-    read setpoint < "$DIR/setpoint"
+  if [[ -s "${SETPOINT_FILE}" ]]; then
+    read setpoint < "${SETPOINT_FILE}"
     datestr=$(date -u +"%F-%T:")
     echo "$datestr Setpoint: $setpoint" >&2; exit 0
   else
-    echo "ERROR: cannot find setpoint file $DIR/setpoint or file is empty, and no new setpoint specified"
+    echo "ERROR: cannot find setpoint file ${SETPOINT_FILE} or file is empty, and no new setpoint specified"
     exit 1
   fi
 fi
@@ -70,13 +72,13 @@ if ! [[ "${1}" =~ $re ]] ; then
   echo "ERROR: Setpoint must be a number" >&2; exit 1
 fi
 
-if [[ ! -d ${DIR} ]]; then
-  echo "ERROR: Specified working directory ${DIR} does not exist - cannot create setpoint file" >&2; exit 1
+if [[ ! -d $(dirname ${SETPOINT_FILE}) ]]; then
+  echo "ERROR: Specified setpoint directory to contain ${SETPOINT_FILE} does not exist - cannot create setpoint file" >&2; exit 1
 fi
 
 # Write new setpoint to setpoint file
-echo "${1}" >  "$DIR/setpoint"
-read setpoint <  "$DIR/setpoint"
+echo "${1}" >  "${SETPOINT_FILE}"
+read setpoint <  "${SETPOINT_FILE}"
 datestr=$(date -u +"%F-%T:")
 # If log is specified in config file, output to log as well as STDOUT
 if [[ ! -z "${CONTROLLER_LOGFILE}" ]]; then

@@ -106,6 +106,9 @@ handle_warning $? "Could not add user $(logname) to 'video' group to allow inter
 # Add interactive user to controller group to allow access to setpoint, logfiles etc for running controller functions from command line
 adduser "$(logname)" tempctl
 handle_warning $? "Could not add user $(logname) to 'tempctl' group to allow interactive running of controller"
+# Add controller user to interactive user group to allow both to run analysis and overwrite each others analysis outputs
+adduser tempctl "$(logname)"
+handle_warning $? "Could not add user 'tempctl' to group $(logname) to allow both user and syatem to run analysis"
 
 ## Create directories and move files from repo
 echo "Copying scripts and setting up system"
@@ -142,7 +145,7 @@ else
   # For clean install only, set up default config file
   cp config/controller.conf /etc
   handle_warning $? "Couldn't copy config file to /etc"
-  sed -i -e "/WORKING_DIR=/c\WORKING_DIR=\/etc" /etc/controller.conf
+  sed -i -e "/SETPOINT_FILE=/c\SETPOINT_FILE=\/etc\/controller-setpoints\/setpoint" /etc/controller.conf
   handle_warning $? "Couldn't edit config file"
   sed -i -e "/SCRIPTDIR=/c\SCRIPTDIR=\/opt\/scripts\/temperature-controller" /etc/controller.conf
   handle_warning $? "Couldn't edit config file"
@@ -160,7 +163,7 @@ chmod 664 /etc/controller.conf
 handle_warning $? "Couldn't set mode (permissions) of config file"
 
 ## Create files and directories for outputs, logs and setpoint - mainly to ensure they have correct owner and permissions
-# Note these paths may not match values of WORKING_DIR, CONTROLLER_LOGFILE, DATA_LOGFILE and ANALYSIS_OUTDIR if existing controller config is present
+# Note these paths may not match values of SETPOINT_FILE, CONTROLLER_LOGFILE, DATA_LOGFILE and ANALYSIS_OUTDIR if existing controller config is present and has been modified
 echo "Setting up output directory for logs, analysis and S3 web example"
 mkdir -p /var/log/temperature-controller
 handle_warning $? "Couldn't create output dir"
@@ -179,11 +182,17 @@ handle_warning $? "Couldn't set owner of output dir contents"
 chmod  664 /var/log/temperature-controller/*
 handle_warning $? "Couldn't set mode (permissions) output dir contents"
 rm /var/log/temperature-controller/readme.txt
+mkdir -p /etc/controller-setpoints
+handle_warning $? "Couldn't create setpoints dir"
+chown tempctl:tempctl /etc/controller-setpoints
+handle_warning $? "Couldn't set owner of setpoints dir"
+chmod 775 /etc/controller-setpoints
+handle_warning $? "Couldn't set mode (permissions) of setpoints dir"
+touch /etc/controller-setpoints/setpoint
 handle_warning $? "Couldn't crete setpoint file"
-touch /etc/setpoint
-chown tempctl:tempctl /etc/setpoint
+chown tempctl:tempctl /etc/controller-setpoints/setpoint
 handle_warning $? "Couldn't set owner of setpoint file"
-chmod 664 /etc/setpoint
+chmod 664 /etc/controller-setpoints/setpoint
 handle_warning $? "Couldn't set mode (permissions) setpoint file"
 
 ## Setup crontab and logging - note lines are added but commented for user to uncomment / modify as required
@@ -211,15 +220,15 @@ handle_warning $? "Couldn't set mode (permissions) of logrotate for controller s
 ## Enable and start services - note will be in error state until setpoint exists
 echo "Starting and enabling at boot time services for controller - may take some time..."
 systemctl daemon-reload
-handle_warning $? "Couldn't set up services woth systemctl"
-systemctl restart temperature-controller.service
-handle_warning $? "Couldn't set up services woth systemctl"
-systemctl restart temperature-controller-restarter.path
-handle_warning $? "Couldn't set up services woth systemctl"
-sudo systemctl enable temperature-controller-restarter.path
-handle_warning $? "Couldn't set up services woth systemctl"
-sudo systemctl enable temperature-controller.service
-handle_warning $? "Couldn't set up services woth systemctl"
+handle_warning $? "Couldn't set up services with systemctl"
+systemctl restart temperature-controller@controller.conf.service
+handle_warning $? "Couldn't set up services with systemctl"
+systemctl restart temperature-controller-restarter@controller.conf.path
+handle_warning $? "Couldn't set up services with systemctl"
+sudo systemctl enable temperature-controller@controller.conf.service
+handle_warning $? "Couldn't set up services with systemctl"
+sudo systemctl enable temperature-controller-restarter@controller.conf.path
+handle_warning $? "Couldn't set up services with systemctl"
 
 ## Setup 1-wire DT overlay if not already and prompt to reboot if not already set (warn if no /boot/config.txt - note already checked raspbian above)
 if [[ -f /boot/config.txt ]]; then
@@ -255,4 +264,4 @@ echo " -  Run log analysis with 'a' and s3 sync (if enabled in config) with 's3'
 echo " -  (Note it will be necesary to log out and back in to enable commands (aliases) and apply user/group changes)"
 echo " -  Edit and uncomment lines in /etc/crontab as required to automate setpoint, analysis, S3 push"
 echo ""
-echo "Installer exiting"
+echo "Installer completed"

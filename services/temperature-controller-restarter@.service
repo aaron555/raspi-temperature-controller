@@ -4,7 +4,7 @@ After=local-fs.target multi-user.target
 
 [Service]
 Type=oneshot
-ExecStart=/bin/systemctl restart temperature-controller.service
+ExecStart=/bin/systemctl restart temperature-controller@%I.service
 
 [Install]
 Alias=temperature-controller-restarter.service

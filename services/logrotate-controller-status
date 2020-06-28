@@ -2,6 +2,7 @@
   daily
   rotate 14
   compress
+  delaycompress
   create 644 tempctl tempctl
   missingok
   notifempty
