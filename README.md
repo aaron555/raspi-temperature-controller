@@ -1,5 +1,5 @@
 # raspi-temperature-controller
-Simple binary ("bang-bang") temperature controller, based on Raspberry Pi and 1-wire sensor(s), with relay output, data and status logging, and cloud data push
+Simple binary ("bang-bang") temperature controller, based on Raspberry Pi and 1-wire sensor(s), with relay output(s), data and status logging, and optional cloud data push
 
 ## Description
 
@@ -43,49 +43,91 @@ sudo ./install.sh
 - edit _/etc/crontab_, uncomment required lines and set times and setpoints to automate setting setpoint, running analysis and syncing data to AWS S3
 - Note installer will update apt repos and install required dependencies
 
+## Example outputs
+
+*** Link to http://raspi-cloud-public.s3-website.eu-west-2.amazonaws.com/
+*** PNG(s) daily analysis
+*** Screenshots of temperature data plotted in Excel
+*** controller log (and other log / log analysis CSV / etc) snippets/screenshots
+*** All content in examples/ dir and link/inline images as fail2ban-analyse
+
+## Hardware
+
+*** Parts list(s?)
+*** Schematic(s) - simplest proof-of-concept with colocated LED exactly as breadboard, more general with DT relay for feedback, multiple relays/temperature sensor with dashed lines "..." and separate relay supply rail
+*** Photos of breadboard and DIN rail heating controller
+
 ## Software
 
 Separate scripts are provided in _scripts_ directory to control setpoint from the command line, show latest readings and status, analyse the output from the controller to plot PNG graph of daily usage and upload to cloud.  A wrapper script _temperature_controller.sh_ can be used to access all these scripts, using settings in config file, or they can be called directly using command line arguments.  An overview of each script, including inputs and outputs can be found in the headers.
-
-The controller itself can be found at _scripts/control_temp.py_ and details of input arguments can be found by running _scripts/control_temp.py -h_. The basic control strategy is based on control cycles which can be triggered manually or in continuous mode will be run repeatedly with a specified wait interval in seconds between cycles. Each cycle, temperature will be read from all available/configured sensors, and the setpoint and control temperature sensor reading are compared. If a list of sensor IDs is supplied, the first on the list will be used as the control sensor.
 
 The installer _install.sh_ updates apt repo and installs dependencies (note this can take some time depending on when repo was last updated and what is already installed), sets.up users and groups, and copies all scripts and files to their respective locations. It sets up service files and starts and enables them on boot. It also adds example lines to /etc/crontab but these are commented to allow user to edit and enable as required. Note if an existing installation exists the existing controller config file, output directory and crontab lines will not be overwritten (however any custom paths/directories set in config will be ignored and defaults used. At the end, a summary of the install, any warnings (non-fatal errors) that occured and next steps to get started. If a fatal error occurs it will abandon the installation and exit immediately. If not already present, the device-tree overlay for 1-wire devices will be enabled, and this requires a reboot to apply changes. Note the very early Raspbian distributions do not use device tree.
 
 Note in order to control GPIO the user must be in 'gpio' group and for _g_ or _temprt_ to return CPU temperature the user must be in 'video' group. To allow both use of command line tools and automated running via cron/services, user(s) must be in 'tempctl' group, and vice versa. This is set up by _install.sh_, which first creates 'tempctl' user.  This allows all controller functions to be used from command line without sudo/root. Similarly, all the controller service and cron tasks are all run as 'tempctl' user, since it is better practice for security to avoid running processes as root where possible.  For example, running the controller process with mimumum possible priviliges reduces the harm that could be done by an attacher attempting to inject malicioous code into the system configuration file.  The only script that requires sudo/root priviliges is _install.sh_ which is only run once.
 
-  *** S3 IAM access for tempctl user and any interactive users of controller - lots of ways of managing AWS permissions and IAM (and lots of pitfalls and mistakes made!) well beyond scope of this - one way to achieve add to controller.conf "export AWS_ACCESS_KEY_ID= / export AWS_SECRET_ACCESS_KEY=" BUT SECURITY WISE NOT IDEAL!! ),
-  *** note aliases require login shell
-  *** note assume tz UTC on controller OS - internally controller uses UTC in all logs etc but OS features such as cron of course depend on OS time
+When running as a systemctl service, the service will automatically restart when config file is edited or setpoint modified to apply the changes
+
+Optionally, the controller syncs all data in the outputs directory (logs, data, daily analysis) to Amazon AWS S3. This must be enabled in the config file, and an S3 bucket URL must be provided. Optionally, the data can be made public, and very simple html is included to demonstrate publishing data using S3 static web content hosting feature. **Note this means the data is accessible to anyone on the internet** but it does require public access to be allowed in AWS IAM as well. All users running analysis/S3 sync must have RW access to the specified S3 bucket configured in IAM (including 'tempctl' user for system itself).  There are lots of ways of managing AWS permissions usomg IAM (and lots of pitfalls and mistakes are frequently  made - especially with S3!). AWS IAM is documented elsewhere in detail and well beyond scope of this. But great care should be taken, especially when allowing public access to any S3 resources. It is wise to lock down access to a specific IP address or range. One simple (crude) way to achieve access for comtroller system and users is to add S3 access keys to controller config file using _export AWS_ACCESS_KEY_ID= / export AWS_SECRET_ACCESS_KEY=_ but this is not ideal as the credentials are stored in plain text on the comtroller filesystem and accessible to all users in 'tempctl' or with root priviliges.
+
+Note aliases _s_, _g_, _a_, _s3_ require login shell in order to work.
+
+Note the controller uses UTC throughout for all timestamps, and it is assumed OS timezone is UTC. Although internally controller uses UTC in all logs and outputs, OS features such as cron will of course depend on configured OS timezone. OS timezone can be set to UTC using _sudo timedatectl set-timezone UTC_
 
 ### Control strategy
 
+The controller itself can be found at _scripts/control_temp.py_ and details of input arguments can be found by running _scripts/control_temp.py -h_. The basic control strategy is running control cycles which can be triggered manually or in continuous mode will be run repeatedly with a specified wait interval in seconds between cycles. Each cycle, temperature will be read from all available/configured sensors, and the setpoint and control temperature sensor measurement are compared. If a list of sensor IDs is supplied, the first on the list will be used as the control sensor.
+
+In heating mode (default), if the control sensor temperature is greater than or equal to the setpoint and the system is on then it will be switched off.  If the control sensor temperature is less than the setpoint minus the hysteresis value, and the system is off then it will be switched on.  This was based on empirical testing with systems such as domestic central heating systems which react quicker to switching on demand than to switching off (due to heat stored in radiators).  In cooler mode, the switch on point is setpoint plus hysteresis and switch off point is the setpoint.
+
+Note concept of hysterseis is fundamental to a binary control system such as this, since it prevents instability and frequent unecessary switching of the load caused by fluctuations in or accuracy of the measured temperature value, and ensures a "clean" switch on and switch off.  Too frequent switching or an excessive number of switching cycles may ultimately damage the heating or cooling system under control.
+
 ### Configuration file
+
+The system configuration file is normally located at /etc/controller.conf (or config/controller.conf if running straight from repo and not installed - but note /etc/controller.conf always takes precedence if it exists).  Additionally, an alternative config file can be specified by setting environment variable CONFIG_FILE before calling the scripts - this takes precedence over both defaults.  Full details of each key can be found in the comments within the sample config file provided.
+
+- "Path settings" contains paths to the various files and directories required by the controller.  These are set up by the installer automatically, and do no normally need to be changed (unless using multi-channel control outputs)
+- "GPIO pins" specifies the output pins to be used for output demand signal, and optional feedback input to confirm demand has been changed.  These can be left at default for the example schematic
+- Settings for temperature sensor(s) contains IDs and labels for all temperature sensors.  They can be left empty "()", but are espcially useful if multiple sensors are connected to ensure the correct sensor is used for control (first in the list).  Every DS18B20 sensor has a unique 64-bit ID, and if given these must appear in the config file in the form "28-nnnnnnnnnnnn".  They can be found using _ls /sys/bus/w1/devices/_ and should appear in WIRED_SENSORS separated by spaces and enclosed in brackets "()".  The labels WIRED_SENSOR_LABELS are only used in the CSV temperature data column headers when a new datafile is created (the old file must be moved or deleted in order for a new one to be created)
+- "Options for control and logging" sets the controller parameters - hysteresis, whether it is controlling a heating or cooling system and the wait tim in seconds between each cycle
+- "Options for log analysis" sets the date range over which log analysis is carried out for the daily controller data and plots. These dates can be input in any format that can be understood by GNU _date_ (e.g. "3 weeks ago") and should be enclosed in quotes "".  The default settings should analyse the entire logfile.  Note analysis is in whole days so must start and end on a midnight crossing.
+- "AWS settings" - Enable / configure AWS S3 sync - see above in "Software" section
 
 ### Multi-channel control
 
-  *** to enable multiple control channels simply run multiple processes - systemctl syntax / run indivual scripts with ENV / limitations-run from wrapper only not aliases etc.  Note any changes to setpoint from any processes will result in all controller services being restarted. Also note on possible issues with multiple processes all reading all sensors?
+The hardware described includes an 8-channel relay driver, therefore by connecting multiple GPIO outputs to this IC in the same way as the single channel example it is possible to enable up to 8 control channels. In fact the controller is scalable to as many output channels as there are free GPIO pins. Multiple temperature input channels can easily be read since all sensors are on a bus. Any available temperature sensor may be used to control any output channel. Each output channel is controlled by a separate instance of the controller software. To enable additional control chsnnels:
 
-## Hardware
+- Create a new config file in /etc for the additional channel, and edit paths with suitable unique files and directories, including a setpoint file located in /etc/controller-setpoints/ and an output directory
+- Enable/start an additional systemctl service: 
 
-## Example outputs
+```
+systemctl restart temperature-controller@<config-filename>.service
+systemctl restart temperature-controller-restarter@<config-filename>.path
+systemctl enable temperature-controller@<config-filename>.service
+systemctl enable temperature-controller-restarter@<config-filename>.path
+```
+
+- Run indivual scripts preceded by setting CONFIG_FILE variable - e.g. _CONFIG_FILE=/etc/controller2.conf /opt/scripts/temperature-controller/temperature_controller.sh get_
+- Note default alias setup supplied (_s_, _g_, _a_, _s3_) will only work for primary controller service with config at default /etc/controller.conf - additional aliases can be created if required
+- Note any changes to a setpoint from any processes will result in all controller services being restarted
+- Caveats: It has been observed on rare occasions issues with 1-wire driver causing loss of communications to all temperature sensors and requiring full system power cycle.  This is possibly related to issues with multiple processes all reading same sensor at the same time (?) so it may ne advisable to not read all sensors in all processes
 
 ## Requirements
 
 - Raspberry Pi with Raspbian OS and suitable hardware as described above
-- Raspbian OS (may work with other operating systems, particularly Debian based, but this is untested)
+- Raspbian OS (may work with other operating systems, particularly Debian based, but this is untested) - recommended is latest "Raspberry Pi OS (32-bit) Lite" from https://www.raspberrypi.org/downloads/raspberry-pi-os/
 - _bc_ and _awscli_ packages installed
 - Python3 (will run on Python2 if headers in Python scripts changed), with Python3 module _matplotlib_ (must be installed for all users)
 - Write access to an Amazon AWS S3 bucket (if S3 data sync is enabled) for _tempctl_ user and any interactive users
 
 All required dependencies that are not present on the current Raspbian image will be installed by _install.sh_.  Note there may be conflicts if _matplotlib_ is already installed for the user only.
-s
+
 ## IMPORTANT SAFETY INFORMATION
 
-The example circuits given in this project do not contain any voltages above 5 Volts.  If being used to control a real heating/cooling load there are several *VITAL* safety considerations which *MUST* be adhered to:
+The example circuits given in this project do not contain any voltages above 5 Volts.  If being used to control a real heating/cooling load there are several **VITAL** safety considerations which **MUST** be adhered to:
 
-- Heater or cooler must have over/under-temperature protection and be safe to leave "ON" permanently. It must have automatic and manual E-stop circuitry (independent to this controller) to shut it down in the event of any controller or heater/cooler malfunction, over/under temperature, etc.  The hardware and software described above *CANNOT* be relied upon to switch the load off under all circustances (e.g. running periodically in cron the line may be removed/commented; if system is misconfigured or service is stopped - note to prevent brief interruption to demand signal stopping/restarting service does *NOT* switch off demand; or if any failure occurs in the controller hardware or software)
+- Heater or cooler must have over/under-temperature protection and be safe to leave "ON" permanently. It must have automatic and manual E-stop circuitry (independent to this controller) to shut it down in the event of any controller or heater/cooler malfunction, over/under temperature, etc.  The hardware and software described above **CANNOT** be relied upon to switch the load off under all circumstances (e.g. running periodically in cron the line may be removed/commented; if system is misconfigured or service is stopped - note to prevent brief interruption to demand signal stopping/restarting service does **NOT** switch off demand; or if any failure occurs in the controller hardware or software)
 - Any wiring or circuitry that includes potentials above 50 V should be built (or at minimum checked and approved by) a qualified electrician
-- It is recommended to use suitably certified commercial-off-the-shelf parts to wire up any voltages exceeding 50 V (e.g. relay boards, terminals, wiring to load, etc).  *NEVER* use prototyping boards such as breadboard or veroboard to handle mains voltages under any circumstances!
+- It is recommended to use suitably certified commercial-off-the-shelf parts to wire up any voltages exceeding 50 V (e.g. relay boards, terminals, wiring to load, etc).  **NEVER** use prototyping boards such as breadboard or veroboard to handle mains voltages under any circumstances!
 - Ensure proper circuit protection is in place (MCBs for overcurrent, RCD protection for Earth/ground leaks, etc)
 - Ensure proper Earthing/grounding of all supplies to and from all system components, ensure all metal parts and enclosures are properly bonded to Earth/ground
 - Ensure all voltages above 50 V are carried using properly insulated wires and cable rated for the voltage and current in use.  Ensure no exposed voltages are present or can be accessed when the system is powered on, and all voltages above 50 V are only present inside properly designed enclosures.

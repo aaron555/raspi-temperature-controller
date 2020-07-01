@@ -225,9 +225,9 @@ systemctl restart temperature-controller@controller.conf.service
 handle_warning $? "Couldn't set up services with systemctl"
 systemctl restart temperature-controller-restarter@controller.conf.path
 handle_warning $? "Couldn't set up services with systemctl"
-sudo systemctl enable temperature-controller@controller.conf.service
+systemctl enable temperature-controller@controller.conf.service
 handle_warning $? "Couldn't set up services with systemctl"
-sudo systemctl enable temperature-controller-restarter@controller.conf.path
+systemctl enable temperature-controller-restarter@controller.conf.path
 handle_warning $? "Couldn't set up services with systemctl"
 
 ## Setup 1-wire DT overlay if not already and prompt to reboot if not already set (warn if no /boot/config.txt - note already checked raspbian above)
