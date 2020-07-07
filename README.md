@@ -1,5 +1,5 @@
 # raspi-temperature-controller
-Simple binary ("bang-bang") temperature controller, based on Raspberry Pi and 1-wire sensor(s), with relay output(s), data and status logging, and optional cloud data push
+Simple binary ("bang-bang") temperature controller, based on Raspberry Pi and 1-wire sensor(s), with relay output(s), data and status logging, and optional cloud data sync
 
 ## Description
 
@@ -16,6 +16,7 @@ This project is the basis of the system that has been controlling the central he
 ### Run direct from repo
 
 - Clone git repo
+- Prepare hardware and ensure 1-wire driver is enabled in _/boot/config.txt_
 - Run scripts using wrapper _temperature_controller.sh_ as shown below
 - If required edit config file at _config/controller.conf_ (note _/etc/controller.conf_ will always take precedence if it exists
 
@@ -53,8 +54,8 @@ sudo ./install.sh
 
 ## Hardware
 
-*** Parts list(s?)
-*** Schematic(s) - simplest proof-of-concept with colocated LED exactly as breadboard, more general with DT relay for feedback, multiple relays/temperature sensor with dashed lines "..." and separate relay supply rail
+*** Parts list
+*** Schematics - simplest proof-of-concept with colocated LED exactly as breadboard, more general with DT relay for feedback, multiple relays/temperature sensor with dashed lines "..." and separate relay supply rail
 *** Photos of breadboard and DIN rail heating controller
 
 ## Software
@@ -79,7 +80,7 @@ The controller itself can be found at _scripts/control_temp.py_ and details of i
 
 In heating mode (default), if the control sensor temperature is greater than or equal to the setpoint and the system is on then it will be switched off.  If the control sensor temperature is less than the setpoint minus the hysteresis value, and the system is off then it will be switched on.  This was based on empirical testing with systems such as domestic central heating systems which react quicker to switching on demand than to switching off (due to heat stored in radiators).  In cooler mode, the switch on point is setpoint plus hysteresis and switch off point is the setpoint.
 
-Note concept of hysterseis is fundamental to a binary control system such as this, since it prevents instability and frequent unecessary switching of the load caused by fluctuations in or accuracy of the measured temperature value, and ensures a "clean" switch on and switch off.  Too frequent switching or an excessive number of switching cycles may ultimately damage the heating or cooling system under control.
+Note concept of hysteresis is fundamental to a binary control system such as this, since it prevents instability and frequent unecessary switching of the load caused by fluctuations in or accuracy of the measured temperature value, and ensures a "clean" switch on and switch off.  Too frequent switching or an excessive number of switching cycles may ultimately damage the heating or cooling system under control.
 
 ### Configuration file
 
