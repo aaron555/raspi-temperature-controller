@@ -13,9 +13,10 @@ This project is the basis of the system that has been controlling the central he
 
 ## Quick Start Guide
 
-### Run direct from repo
+### Run direct from repo (manual)
 
 - Clone git repo
+- Ensure dependencies are installed (See Requirements section below), and user is in groups 'video' and 'gpio'
 - Prepare hardware and ensure 1-wire driver is enabled in _/boot/config.txt_
 - Run scripts using wrapper _temperature_controller.sh_ as shown below
 - If required edit config file at _config/controller.conf_ (note _/etc/controller.conf_ will always take precedence if it exists
@@ -43,6 +44,7 @@ sudo ./install.sh
 - edit _/etc/controller.conf_ to configure system as required
 - edit _/etc/crontab_, uncomment required lines and set times and setpoints to automate setting setpoint, running analysis and syncing data to AWS S3
 - Note installer will update apt repos and install required dependencies
+- Note the first temperature reading after initially enabling 1-wire driver and rebooting is not always valid, and should be manually ready with _g_ to flush before setting a setpoint
 
 ## Example outputs
 
@@ -62,7 +64,7 @@ sudo ./install.sh
 
 Separate scripts are provided in _scripts_ directory to control setpoint from the command line, show latest readings and status, analyse the output from the controller to plot PNG graph of daily usage and upload to cloud.  A wrapper script _temperature_controller.sh_ can be used to access all these scripts, using settings in config file, or they can be called directly using command line arguments.  An overview of each script, including inputs and outputs can be found in the headers.
 
-The installer _install.sh_ updates apt repo and installs dependencies (note this can take some time depending on when repo was last updated and what is already installed), sets.up users and groups, and copies all scripts and files to their respective locations. It sets up service files and starts and enables them on boot. It also adds example lines to /etc/crontab but these are commented to allow user to edit and enable as required. Note if an existing installation exists the existing controller config file, output directory and crontab lines will not be overwritten (however any custom paths/directories set in config will be ignored and defaults used. At the end, a summary of the install, any warnings (non-fatal errors) that occured and next steps to get started. If a fatal error occurs it will abandon the installation and exit immediately. If not already present, the device-tree overlay for 1-wire devices will be enabled, and this requires a reboot to apply changes. Note the very early Raspbian distributions do not use device tree.
+The installer _install.sh_ updates apt repo and installs dependencies (note this can take some time depending on when repo was last updated and what is already installed), sets.up users and groups, and copies all scripts and files to their respective locations. It sets up service files and starts and enables them on boot. It also adds example lines to /etc/crontab but these are commented to allow user to edit and enable as required. Note if an existing installation exists the existing controller config file, output directory and crontab lines will not be overwritten (however any custom paths/directories set in config will be ignored and defaults used). At the end, a summary of the install, any warnings (non-fatal errors) that occured and next steps to get started. If a fatal error occurs it will abandon the installation and exit immediately. If not already present, the device-tree overlay for 1-wire devices will be enabled, and this requires a reboot to apply changes.  Note the very early Raspbian distributions do not use device tree.
 
 Note in order to control GPIO the user must be in 'gpio' group and for _g_ or _temprt_ to return CPU temperature the user must be in 'video' group. To allow both use of command line tools and automated running via cron/services, user(s) must be in 'tempctl' group, and vice versa. This is set up by _install.sh_, which first creates 'tempctl' user.  This allows all controller functions to be used from command line without sudo/root. Similarly, all the controller service and cron tasks are all run as 'tempctl' user, since it is better practice for security to avoid running processes as root where possible.  For example, running the controller process with mimumum possible priviliges reduces the harm that could be done by an attacher attempting to inject malicioous code into the system configuration file.  The only script that requires sudo/root priviliges is _install.sh_ which is only run once.
 
@@ -98,7 +100,7 @@ The system configuration file is normally located at /etc/controller.conf (or co
 The hardware described includes an 8-channel relay driver, therefore by connecting multiple GPIO outputs to this IC in the same way as the single channel example it is possible to enable up to 8 control channels. In fact the controller is scalable to as many output channels as there are free GPIO pins. Multiple temperature input channels can easily be read since all sensors are on a bus. Any available temperature sensor may be used to control any output channel. Each output channel is controlled by a separate instance of the controller software. To enable additional control chsnnels:
 
 - Create a new config file in /etc for the additional channel, and edit paths with suitable unique files and directories, including a setpoint file located in /etc/controller-setpoints/ and an output directory
-- Enable/start an additional systemctl service: 
+- Enable/start an additional systemctl service:
 
 ```
 systemctl restart temperature-controller@<config-filename>.service
@@ -117,7 +119,7 @@ systemctl enable temperature-controller-restarter@<config-filename>.path
 - Raspberry Pi with Raspbian OS and suitable hardware as described above
 - Raspbian OS (may work with other operating systems, particularly Debian based, but this is untested) - recommended is latest "Raspberry Pi OS (32-bit) Lite" from https://www.raspberrypi.org/downloads/raspberry-pi-os/
 - _bc_ and _awscli_ packages installed
-- Python3 (will run on Python2 if headers in Python scripts changed), with Python3 module _matplotlib_ (must be installed for all users)
+- Python3 (will run on Python2 if headers in Python scripts changed accordingly), with Python3 module _matplotlib_ (must be installed for all users).  Note package _libatlas-base-dev_ may be required to enable _matplotlib_
 - Write access to an Amazon AWS S3 bucket (if S3 data sync is enabled) for _tempctl_ user and any interactive users
 
 All required dependencies that are not present on the current Raspbian image will be installed by _install.sh_.  Note there may be conflicts if _matplotlib_ is already installed for the user only.
