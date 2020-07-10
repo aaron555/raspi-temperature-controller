@@ -15,7 +15,7 @@ This project is the basis of the system that has been controlling the central he
 
 ### Install and run as a service
 
-- Prepare [hardware](#-hardware)
+- Prepare [hardware](#hardware)
 - Clone git repo and run [installer](install.sh) (must be run from repo root directory)
 
 ```
@@ -24,9 +24,9 @@ sudo ./install.sh
 ```
 
 - If 1-wire driver not previously installed, reboot to apply changes, otherwise log out and back in to enable aliases
-- use aliases _g_, _s_, _a_, _s3_ to run set, get, analyse and sync described [below](#-run-direct-from-repo-(manual))
+- use aliases _g_, _s_, _a_, _s3_ to run set, get, analyse and sync described [below](#run-direct-from-repo-(manual))
 - The controller starts in an error state, and will start operating as soon as setpoint is set
-- Note the first temperature reading after initially enabling 1-wire driver and rebooting [is not always valid](#-known-issues), and should be manually ready with _g_ to flush before setting a setpoint
+- Note the first temperature reading after initially enabling 1-wire driver and rebooting [is not always valid](#known-issues), and should be manually ready with _g_ to flush before setting a setpoint
 - edit _/etc/controller.conf_ to configure system as required
 - edit _/etc/crontab_, uncomment required lines and set times and setpoints to automate setting setpoint, running analysis and syncing data to AWS S3
 - Note installer will update apt repos and install required dependencies
@@ -35,7 +35,7 @@ sudo ./install.sh
 ### Run direct from repo (manual)
 
 - Clone git repo
-- Ensure dependencies are installed (See [Requirements](#-requirements), and user is in groups 'video' and 'gpio'
+- Ensure dependencies are installed (See [Requirements](#requirements), and user is in groups 'video' and 'gpio'
 - Prepare hardware and ensure 1-wire driver is enabled in _/boot/config.txt_
 - Run scripts using wrapper _temperature_controller.sh_ as shown below
 - If required edit config file at _config/controller.conf_ (note _/etc/controller.conf_ will always take precedence if it exists
@@ -59,9 +59,9 @@ sudo ./install.sh
 
 ## Hardware
 
-Before designing or building any hardware, read the [safety information](#-important-safety-information).
+Before designing or building any hardware, read the [safety information](#important-safety-information).
 
-The schematics in the [hardware](hardware) section includes an example project using a simulated heating system which employs an LED colocated with one of the temperature sensors to act as a heat source, thereby allowing the temperature controller functionality to be tested and demonstrated using a simple and easy to build breadboard circuit.  A [parts list](hardware/raspi-temperature-controller-breadboard_Simulation_Demo_Circuit_Parts_List.ods), [schematic](hardware/raspi-temperature-controller-breadboard_Simulation_Demo_Circuit_Schematic.pdf) and photos of this breadboard circuit can all be found in the hardware section.  Simply obtain the parts on the parts list, build up the circuit as per the schematic and photos on a breadboard and plug in to a Raspberry Pi, and the system is ready to use as per the [quick start guide](#-quick-start-guide).
+The schematics in the [hardware](hardware) section includes an example project using a simulated heating system which employs an LED colocated with one of the temperature sensors to act as a heat source, thereby allowing the temperature controller functionality to be tested and demonstrated using a simple and easy to build breadboard circuit.  A [parts list](hardware/raspi-temperature-controller-breadboard_Simulation_Demo_Circuit_Parts_List.ods), [schematic](hardware/raspi-temperature-controller-breadboard_Simulation_Demo_Circuit_Schematic.pdf) and photos of this breadboard circuit can all be found in the hardware section.  Simply obtain the parts on the parts list, build up the circuit as per the schematic and photos on a breadboard and plug in to a Raspberry Pi, and the system is ready to use as per the [quick start guide](#quick-start-guide).
 
 [![Breadboard view 1](hardware/raspi-temperature-controller-breadboard-1_small.jpg)](hardware/raspi-temperature-controller-breadboard-1.jpg) [![Breadboard view 2](hardware/raspi-temperature-controller-breadboard-2_small.jpg)](hardware/raspi-temperature-controller-breadboard-2.jpg) [![Breadboard view 3](hardware/raspi-temperature-controller-breadboard-side-1_small.jpg)](hardware/raspi-temperature-controller-breadboard-side-1.jpg) [![Breadboard view 4](hardware/raspi-temperature-controller-breadboard-2_small.jpg)](hardware/raspi-temperature-controller-breadboard-2.jpg)
 
@@ -77,7 +77,7 @@ Note in order to control GPIO the user must be in 'gpio' group and for _g_ or _t
 
 When running as a systemctl service, the service will automatically restart when config file is edited or setpoint modified to apply the changes
 
-Optionally, the controller syncs all data in the outputs directory (logs, data, daily analysis) to Amazon AWS S3. This must be enabled in the [config file](#-configuration-file), and an S3 bucket URL must be provided. Optionally, the data can be made public, and very simple html is included to demonstrate publishing data using S3 static web content hosting feature. **Note this means the data is accessible to anyone on the internet** but it does require public access to be allowed in AWS IAM as well. All users running analysis/S3 sync must have RW access to the specified S3 bucket configured in IAM (including 'tempctl' user for system itself).  There are lots of ways of managing AWS permissions usomg IAM (and lots of pitfalls and mistakes are frequently made - especially with S3!). AWS IAM is documented elsewhere in detail and well beyond scope of this guide. But great care should be taken, especially when allowing public access to any S3 resources. It is wise to lock down access to a specific IP address or range. One simple (crude) way to achieve access for comtroller system and users is to add S3 access keys to controller config file using _export AWS_ACCESS_KEY_ID= / export AWS_SECRET_ACCESS_KEY=_ but this is not ideal as the credentials are stored in plain text on the comtroller filesystem and accessible to all users in 'tempctl' or with root priviliges.
+Optionally, the controller syncs all data in the outputs directory (logs, data, daily analysis) to Amazon AWS S3. This must be enabled in the [config file](#configuration-file), and an S3 bucket URL must be provided. Optionally, the data can be made public, and very simple html is included to demonstrate publishing data using S3 static web content hosting feature. **Note this means the data is accessible to anyone on the internet** but it does require public access to be allowed in AWS IAM as well. All users running analysis/S3 sync must have RW access to the specified S3 bucket configured in IAM (including 'tempctl' user for system itself).  There are lots of ways of managing AWS permissions usomg IAM (and lots of pitfalls and mistakes are frequently made - especially with S3!). AWS IAM is documented elsewhere in detail and well beyond scope of this guide. But great care should be taken, especially when allowing public access to any S3 resources. It is wise to lock down access to a specific IP address or range. One simple (crude) way to achieve access for comtroller system and users is to add S3 access keys to controller config file using _export AWS_ACCESS_KEY_ID= / export AWS_SECRET_ACCESS_KEY=_ but this is not ideal as the credentials are stored in plain text on the comtroller filesystem and accessible to all users in 'tempctl' or with root priviliges.
 
 Note aliases _s_, _g_, _a_, _s3_ require a login shell in order to work.
 
@@ -120,7 +120,7 @@ sudo systemctl enable temperature-controller-restarter@<config-filename>.path
 - Run individual scripts preceded by setting CONFIG_FILE variable - e.g. _CONFIG_FILE=/etc/<config-filename> /opt/scripts/temperature-controller/temperature_controller.sh get_
 - Note default alias setup supplied (_s_, _g_, _a_, _s3_) will only work for primary controller service with config at default /etc/controller.conf - additional aliases can be created if required
 - Note any changes to a setpoint from any processes will result in all controller services being restarted
-- Multi-channel control with multiple processes running may occasionally cause [issues with sensor communications](#-known-issues)
+- Multi-channel control with multiple processes running may occasionally cause [issues with sensor communications](#known-issues)
 
 ## Requirements
 
