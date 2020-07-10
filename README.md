@@ -13,10 +13,29 @@ This project is the basis of the system that has been controlling the central he
 
 ## Quick Start Guide
 
+### Install and run as a service
+
+- Prepare [hardware](##-Hardware)
+- Clone git repo and run [installer](install.sh) (must be run from repo root directory)
+
+```
+cd raspi-temperature-controller
+sudo ./install.sh
+```
+
+- If 1-wire driver not previously installed, reboot to apply changes, otherwise log out and back in to enable aliases
+- use aliases _g_, _s_, _a_, _s3_ to run set, get, analyse and sync described [below](###-Run-direct-from-repo-(manual))
+- The controller starts in an error state, and will start operating as soon as setpoint is set
+- Note the first temperature reading after initially enabling 1-wire driver and rebooting is not always valid, and should be manually ready with _g_ to flush before setting a setpoint
+- edit _/etc/controller.conf_ to configure system as required
+- edit _/etc/crontab_, uncomment required lines and set times and setpoints to automate setting setpoint, running analysis and syncing data to AWS S3
+- Note installer will update apt repos and install required dependencies
+- View outputs in _ll /var/log/temperature-controller_
+
 ### Run direct from repo (manual)
 
 - Clone git repo
-- Ensure dependencies are installed (See Requirements section below), and user is in groups 'video' and 'gpio'
+- Ensure dependencies are installed (See [Requirements](##-Requirements), and user is in groups 'video' and 'gpio'
 - Prepare hardware and ensure 1-wire driver is enabled in _/boot/config.txt_
 - Run scripts using wrapper _temperature_controller.sh_ as shown below
 - If required edit config file at _config/controller.conf_ (note _/etc/controller.conf_ will always take precedence if it exists
@@ -30,22 +49,6 @@ This project is the basis of the system that has been controlling the central he
 ./temperature_controller.sh sync - sync data in output directory if enabled in config file (this is also run after 'analyse'
 ```
 
-### Install and run as a service
-
-- Clone git repo
-- Run installer
-
-```
-sudo ./install.sh
-```
-
-- If 1-wire driver not previously installed, reboot to apply changes, otherwise log out and back in to enable aliases
-- use aliases _s_, _g_, _a_, _s3_ to run set, get, analyse and sync described above
-- edit _/etc/controller.conf_ to configure system as required
-- edit _/etc/crontab_, uncomment required lines and set times and setpoints to automate setting setpoint, running analysis and syncing data to AWS S3
-- Note installer will update apt repos and install required dependencies
-- Note the first temperature reading after initially enabling 1-wire driver and rebooting is not always valid, and should be manually ready with _g_ to flush before setting a setpoint
-
 ## Example outputs
 
 *** Link to http://raspi-cloud-public.s3-website.eu-west-2.amazonaws.com/
@@ -56,6 +59,7 @@ sudo ./install.sh
 
 ## Hardware
 
+Before designing or building any hardware, read the [safety information](##-IMPORTANT-SAFETY-INFORMATION)
 *** Parts list
 *** Schematics - simplest proof-of-concept with colocated LED exactly as breadboard, more general with DT relay for feedback, multiple relays/temperature sensor with dashed lines "..." and separate relay supply rail
 *** Photos of breadboard and DIN rail heating controller
@@ -70,9 +74,9 @@ Note in order to control GPIO the user must be in 'gpio' group and for _g_ or _t
 
 When running as a systemctl service, the service will automatically restart when config file is edited or setpoint modified to apply the changes
 
-Optionally, the controller syncs all data in the outputs directory (logs, data, daily analysis) to Amazon AWS S3. This must be enabled in the config file, and an S3 bucket URL must be provided. Optionally, the data can be made public, and very simple html is included to demonstrate publishing data using S3 static web content hosting feature. **Note this means the data is accessible to anyone on the internet** but it does require public access to be allowed in AWS IAM as well. All users running analysis/S3 sync must have RW access to the specified S3 bucket configured in IAM (including 'tempctl' user for system itself).  There are lots of ways of managing AWS permissions usomg IAM (and lots of pitfalls and mistakes are frequently  made - especially with S3!). AWS IAM is documented elsewhere in detail and well beyond scope of this. But great care should be taken, especially when allowing public access to any S3 resources. It is wise to lock down access to a specific IP address or range. One simple (crude) way to achieve access for comtroller system and users is to add S3 access keys to controller config file using _export AWS_ACCESS_KEY_ID= / export AWS_SECRET_ACCESS_KEY=_ but this is not ideal as the credentials are stored in plain text on the comtroller filesystem and accessible to all users in 'tempctl' or with root priviliges.
+Optionally, the controller syncs all data in the outputs directory (logs, data, daily analysis) to Amazon AWS S3. This must be enabled in the [config file](###-Configuration-file), and an S3 bucket URL must be provided. Optionally, the data can be made public, and very simple html is included to demonstrate publishing data using S3 static web content hosting feature. **Note this means the data is accessible to anyone on the internet** but it does require public access to be allowed in AWS IAM as well. All users running analysis/S3 sync must have RW access to the specified S3 bucket configured in IAM (including 'tempctl' user for system itself).  There are lots of ways of managing AWS permissions usomg IAM (and lots of pitfalls and mistakes are frequently made - especially with S3!). AWS IAM is documented elsewhere in detail and well beyond scope of this guide. But great care should be taken, especially when allowing public access to any S3 resources. It is wise to lock down access to a specific IP address or range. One simple (crude) way to achieve access for comtroller system and users is to add S3 access keys to controller config file using _export AWS_ACCESS_KEY_ID= / export AWS_SECRET_ACCESS_KEY=_ but this is not ideal as the credentials are stored in plain text on the comtroller filesystem and accessible to all users in 'tempctl' or with root priviliges.
 
-Note aliases _s_, _g_, _a_, _s3_ require login shell in order to work.
+Note aliases _s_, _g_, _a_, _s3_ require a login shell in order to work.
 
 Note the controller uses UTC throughout for all timestamps, and it is assumed OS timezone is UTC. Although internally controller uses UTC in all logs and outputs, OS features such as cron will of course depend on configured OS timezone. OS timezone can be set to UTC using _sudo timedatectl set-timezone UTC_
 
@@ -86,7 +90,7 @@ Note concept of hysteresis is fundamental to a binary control system such as thi
 
 ### Configuration file
 
-The system configuration file is normally located at /etc/controller.conf (or config/controller.conf if running straight from repo and not installed - but note /etc/controller.conf always takes precedence if it exists).  Additionally, an alternative config file can be specified by setting environment variable CONFIG_FILE before calling the scripts - this takes precedence over both defaults.  Full details of each key can be found in the comments within the sample config file provided.
+The system configuration file is normally located at /etc/controller.conf (or config/controller.conf if running straight from repo and not installed - but note /etc/controller.conf always takes precedence if it exists).  Additionally, an alternative config file can be specified by setting environment variable CONFIG_FILE before calling the scripts - this takes precedence over both defaults.  Full details of each key can be found in the comments within the [sample config file](config/controller.conf) provided.
 
 - "Path settings" contains paths to the various files and directories required by the controller.  These are set up by the installer automatically, and do no normally need to be changed (unless using multi-channel control outputs)
 - "GPIO pins" specifies the output pins to be used for output demand signal, and optional feedback input to confirm demand has been changed.  These can be left at default for the example schematic
@@ -97,22 +101,23 @@ The system configuration file is normally located at /etc/controller.conf (or co
 
 ### Multi-channel control
 
-The hardware described includes an 8-channel relay driver, therefore by connecting multiple GPIO outputs to this IC in the same way as the single channel example it is possible to enable up to 8 control channels. In fact the controller is scalable to as many output channels as there are free GPIO pins. Multiple temperature input channels can easily be read since all sensors are on a bus. Any available temperature sensor may be used to control any output channel. Each output channel is controlled by a separate instance of the controller software. To enable additional control chsnnels:
+The hardware described includes an 8-channel relay driver, therefore by connecting multiple GPIO outputs to this IC in the same way as the single channel example it is possible to enable up to 8 control channels. In fact the controller is scalable to as many output channels as there are free GPIO pins. Multiple temperature input channels can easily be read since all sensors are on a common bus. Any available temperature sensor may be used to control any output channel. Each output channel is controlled by a separate instance of the controller software. An example schematic showing multi-channel control is shown [here](hardware/raspi-temperature-controller_Full-General_Variants_Schematic.pdf). To enable an additional control channel in software:
 
-- Create a new config file in /etc for the additional channel, and edit paths with suitable unique files and directories, including a setpoint file located in /etc/controller-setpoints/ and an output directory
-- Enable/start an additional systemctl service:
+- Create a new config file in /etc for the additional channel, and edit the _## Path settings_ section with suitable unique files and directories, including specifying a setpoint file (must be located in _/etc/controller-setpoints/_, owned by tempctl and group writable) and an output directory (make sure the output directory exists, and also owned by tempctl and group-writable)
+- Enable/start an additional systemctl service (for config file _/etc/<config-filename>_):
 
 ```
-systemctl restart temperature-controller@<config-filename>.service
-systemctl restart temperature-controller-restarter@<config-filename>.path
-systemctl enable temperature-controller@<config-filename>.service
-systemctl enable temperature-controller-restarter@<config-filename>.path
+sudo systemctl restart temperature-controller@<config-filename>.service
+sudo systemctl restart temperature-controller-restarter@<config-filename>.path
+sudo systemctl enable temperature-controller@<config-filename>.service
+sudo systemctl enable temperature-controller-restarter@<config-filename>.path
 ```
 
-- Run indivual scripts preceded by setting CONFIG_FILE variable - e.g. _CONFIG_FILE=/etc/controller2.conf /opt/scripts/temperature-controller/temperature_controller.sh get_
+- Warning - if <config-filename> does not exist, the new controller process will default to _/etc/controller.conf_ which may result in multiple processes running simultaneously using same config
+- Run individual scripts preceded by setting CONFIG_FILE variable - e.g. _CONFIG_FILE=/etc/<config-filename> /opt/scripts/temperature-controller/temperature_controller.sh get_
 - Note default alias setup supplied (_s_, _g_, _a_, _s3_) will only work for primary controller service with config at default /etc/controller.conf - additional aliases can be created if required
 - Note any changes to a setpoint from any processes will result in all controller services being restarted
-- Caveats: It has been observed on rare occasions issues with 1-wire driver causing loss of communications to all temperature sensors and requiring full system power cycle.  This is possibly related to issues with multiple processes all reading same sensor at the same time (?) so it may ne advisable to not read all sensors in all processes
+- Known issue: It has been observed on rare occasions loss of communications to all temperature sensors requiring full system power cycle.  This is possibly related to issues with multiple processes all reading same sensor at the same time so it may ne advisable to not read all sensors in all processes
 
 ## Requirements
 

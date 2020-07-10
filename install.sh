@@ -196,7 +196,7 @@ chmod 664 /etc/controller-setpoints/setpoint
 handle_warning $? "Couldn't set mode (permissions) setpoint file"
 
 ## Setup crontab and logging - note lines are added but commented for user to uncomment / modify as required
-echo "Adding example lines to crontab for automation (commented - edit and uncomment ton enable) and associated logging"
+echo "Adding example lines to crontab for automation (commented - edit and uncomment to enable) and associated logging"
 # Check if lines already exist in crontab - in which case do not copy anything to prevent bloating crontab
 if grep temperature_controller.sh /etc/crontab 2>&1 >/dev/null; then
   handle_warning "1" "/etc/crontab already contains lines relating to temperature_controller.sh - not adding.  For a clean install remove all existing lines first"

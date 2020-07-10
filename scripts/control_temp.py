@@ -208,7 +208,7 @@ else:
   # Find list of /sys/bus/w1/devices/28-*/w1_slave and select first
   sensor_list = glob.glob('/sys/devices/w1_bus_master1/28*/w1_slave')
   if not sensor_list:
-    format_print("ERROR: Cannot find any 1-wire temperature sensors on 1-wire bus, ensure temperature sensor(s) are properly connected")
+    format_print("ERROR: Cannot find any temperature sensors on 1-wire bus, ensure temperature sensor(s) are properly connected and 1-wire driver loaded")
     exit_on_error()
   temp_sensors = [ele.split('/')[4] for ele in sensor_list]
 
