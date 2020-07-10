@@ -24,7 +24,7 @@ sudo ./install.sh
 ```
 
 - If 1-wire driver not previously installed, reboot to apply changes, otherwise log out and back in to enable aliases
-- use aliases _g_, _s_, _a_, _s3_ to run set, get, analyse and sync described [below](#run-direct-from-repo-(manual))
+- use aliases _g_, _s_, _a_, _s3_ to run set, get, analyse and sync described [below](#run-direct-from-repo-manual)
 - The controller starts in an error state, and will start operating as soon as setpoint is set
 - Note the first temperature reading after initially enabling 1-wire driver and rebooting [is not always valid](#known-issues), and should be manually ready with _g_ to flush before setting a setpoint
 - edit _/etc/controller.conf_ to configure system as required
