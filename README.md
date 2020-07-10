@@ -11,7 +11,7 @@ The controller software is configurable and flexible, capable of storing tempera
 
 This project is the basis of the system that has been controlling the central heating system in my flat since 2014 :) (https://aaronlockton.com/)
 
-## Quick Start Guide
+## Quick start guide
 
 ### Install and run as a service
 
@@ -26,7 +26,7 @@ sudo ./install.sh
 - If 1-wire driver not previously installed, reboot to apply changes, otherwise log out and back in to enable aliases
 - use aliases _g_, _s_, _a_, _s3_ to run set, get, analyse and sync described [below](###-Run-direct-from-repo-(manual))
 - The controller starts in an error state, and will start operating as soon as setpoint is set
-- Note the first temperature reading after initially enabling 1-wire driver and rebooting is not always valid, and should be manually ready with _g_ to flush before setting a setpoint
+- Note the first temperature reading after initially enabling 1-wire driver and rebooting [is not always valid](##-Known-issues), and should be manually ready with _g_ to flush before setting a setpoint
 - edit _/etc/controller.conf_ to configure system as required
 - edit _/etc/crontab_, uncomment required lines and set times and setpoints to automate setting setpoint, running analysis and syncing data to AWS S3
 - Note installer will update apt repos and install required dependencies
@@ -59,10 +59,13 @@ sudo ./install.sh
 
 ## Hardware
 
-Before designing or building any hardware, read the [safety information](##-IMPORTANT-SAFETY-INFORMATION)
-*** Parts list
-*** Schematics - simplest proof-of-concept with colocated LED exactly as breadboard, more general with DT relay for feedback, multiple relays/temperature sensor with dashed lines "..." and separate relay supply rail
-*** Photos of breadboard and DIN rail heating controller
+Before designing or building any hardware, read the [safety information](##-IMPORTANT-SAFETY-INFORMATION).
+
+The schematics in the [hardware](hardware) section includes an example project using a simulated heating system which employs an LED colocated with one of the temperature sensors to act as a heat source, thereby allowing the temperature controller functionality to be tested and demonstrated using a simple and easy to build breadboard circuit.  A [parts list](hardware/raspi-temperature-controller-breadboard_Simulation_Demo_Circuit_Parts_List.ods), [schematic](hardware/raspi-temperature-controller-breadboard_Simulation_Demo_Circuit_Schematic.pdf) and photos of this breadboard circuit can all be found in the hardware section.  Simply obtain the parts on the parts list, build up the circuit as per the schematic and photos on a breadboard and plug in to a Raspberry Pi, and the system is ready to use as per the [quick start guide](##-Quick-start-guide).
+
+[![Breadboard view 1](hardware/raspi-temperature-controller-breadboard-1_small.jpg)](hardware/raspi-temperature-controller-breadboard-1.jpg) [![Breadboard view 2](hardware/raspi-temperature-controller-breadboard-2_small.jpg)](hardware/raspi-temperature-controller-breadboard-2.jpg) [![Breadboard view 3](hardware/raspi-temperature-controller-breadboard-side-1_small.jpg)](hardware/raspi-temperature-controller-breadboard-side-1.jpg) [![Breadboard view 4](hardware/raspi-temperature-controller-breadboard-2_small.jpg)](hardware/raspi-temperature-controller-breadboard-2.jpg)
+
+*** Schematics  more general with DT relay for feedback, multiple relays/temperature sensor with dashed lines "..." and separate relay supply rail + photos DIN rail heating controller
 
 ## Software
 
@@ -117,7 +120,7 @@ sudo systemctl enable temperature-controller-restarter@<config-filename>.path
 - Run individual scripts preceded by setting CONFIG_FILE variable - e.g. _CONFIG_FILE=/etc/<config-filename> /opt/scripts/temperature-controller/temperature_controller.sh get_
 - Note default alias setup supplied (_s_, _g_, _a_, _s3_) will only work for primary controller service with config at default /etc/controller.conf - additional aliases can be created if required
 - Note any changes to a setpoint from any processes will result in all controller services being restarted
-- Known issue: It has been observed on rare occasions loss of communications to all temperature sensors requiring full system power cycle.  This is possibly related to issues with multiple processes all reading same sensor at the same time so it may ne advisable to not read all sensors in all processes
+- Multi-channel control with multiple processes running may occasionally cause [issues with sensor communications](##-Known-issues)
 
 ## Requirements
 
@@ -128,6 +131,12 @@ sudo systemctl enable temperature-controller-restarter@<config-filename>.path
 - Write access to an Amazon AWS S3 bucket (if S3 data sync is enabled) for _tempctl_ user and any interactive users
 
 All required dependencies that are not present on the current Raspbian image will be installed by _install.sh_.  Note there may be conflicts if _matplotlib_ is already installed for the user only.
+
+## Known issues
+
+- The first sample read from the 1-wire sensors on startup is not always valid.  This mainly appears to happen when 1-wire driver is first installed, but reading and discarding a sample on power up / system boot may be advisable in some applications
+- The 1-wire data given by the _temprt_ script called using the interactive 'get' command or _g_ alias is not checked for CRC / validity.  This is not the case for the controller, which checks all temperature data before acting upon  it for control or storing it
+- In some cases a loss of communications to some or all temperature sensors has been observed, requiring full system power cycle (reboot does not fix).  This appears related to issues with multiple processes all reading same sensor at the same time so it may be advisable to not read the same sensors multiple times in differeent processes, and specifically configure sensor IDs in config file when using multiple control channels
 
 ## IMPORTANT SAFETY INFORMATION
 
