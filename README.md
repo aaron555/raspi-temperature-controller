@@ -73,8 +73,10 @@ The output GPIOs from the raspberry Pi cannot drive a relay directly, therefore 
 
 The heating load is simulated by an LED (LED1) run at absolute max forward current (I<sub>F</sub>) of 25 mA.  This is set by current limiting resistor (R2) - since the LED has a forward voltage (V<sub>F</sub>) of 2.5 V, the supply voltage is 5 V and R2 is 100 Ohm, V = IR:
  - I<sub>F</sub> = V / R = (5 - 2.5) / 100 = 2.5 / 100 = 25 mA
+
 Both the LED (LED1) and the resistor (R2) itself dissipate power P = I<sup>2</sup>R:
 - P = I<sup>2</sup>R = 0.025 * 0.025 * 100 = 0.0625 W
+
 Therefore R2 rated at 0.25 W provides sufficient safety margin to prevent the resistor running excessively hot.
 
 #### Practical implementations
