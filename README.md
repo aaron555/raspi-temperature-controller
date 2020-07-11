@@ -63,6 +63,8 @@ Before designing or building any hardware, read the [safety information](#import
 
 The schematics in the [hardware](hardware) section includes an example project using a simulated heating system which employs an LED colocated with one of the temperature sensors to act as a heat source, thereby allowing the temperature controller functionality to be tested and demonstrated using a simple and easy to build breadboard circuit.  A [parts list](hardware/raspi-temperature-controller-breadboard_Simulation_Demo_Circuit_Parts_List.ods), [schematic](hardware/raspi-temperature-controller-breadboard_Simulation_Demo_Circuit_Schematic.pdf) and photos of this breadboard circuit can are all provided.  Simply obtain the parts on the parts list, build up the circuit as per the schematic and photos on a breadboard and plug in to a Raspberry Pi, and the system is ready to use as per the [quick start guide](#quick-start-guide).
 
+To simulate a cooler instead of a heater, simply connect the 5 V rail to relay NC instead of NO.  In this arrangement, the demand signal switches off the LED, inverting the behaviour.
+
 [![Breadboard view 1](hardware/raspi-temperature-controller-breadboard-1_small.jpg)](hardware/raspi-temperature-controller-breadboard-1.jpg) [![Breadboard view 2](hardware/raspi-temperature-controller-breadboard-2_small.jpg)](hardware/raspi-temperature-controller-breadboard-2.jpg) [![Breadboard view 3](hardware/raspi-temperature-controller-breadboard-side-1_small.jpg)](hardware/raspi-temperature-controller-breadboard-side-1.jpg) [![Breadboard view 4](hardware/raspi-temperature-controller-breadboard-2_small.jpg)](hardware/raspi-temperature-controller-breadboard-2.jpg)
 
 #### Circuit description
@@ -81,7 +83,9 @@ Therefore R2 rated at 0.25 W provides sufficient safety margin to prevent the re
 
 #### Practical implementations
 
-*** Schematics  more general with DT relay for feedback, multiple relays/temperature sensor with dashed lines "..." and separate relay supply rail + photos DIN rail heating controller
+As well as the simple breadboard example circuit given above, a more general example [schematic](hardware/raspi-temperature-controller_Full-General_Variants_Schematic.pdf) is also shown, with multiple relays as well as multiple temperature sensors, thereby allowing multi-channel output control. This circuit also uses double pole relays, which gives an additional spare pair of contacts which can be fed back to a spare GPIO input (*GPIO_FEEDBACK* in the config file) allowing the controller to read the state of the relay and confirm the demand signal has been acted upon. This circuit also uses a separate supply for the relay coils, allowing use of coil voltages other than 5 V and removing the risk of overloading the Raspberry Pi 5 V rail when using multiple relays.  Note the relay coil supply must also have a common 0 V reference with Raspberry Pi supply. A version of this circuit built into a more industrial-controller style cabinet is shown in the photos in the [hardware](hardware) section:
+
+[![Industrial lid-on](hardware/raspi-temperature-controller-industrial_small.jpg)](hardware/raspi-temperature-controller-industrial.jpg) [![Industrial lid-off](hardware/raspi-temperature-controller-industrial-lidoff_small.jpg)](hardware/raspi-temperature-controller-industrial-lidoff.jpg)
 
 ## Software
 
@@ -109,7 +113,7 @@ Note concept of hysteresis is fundamental to a binary control system such as thi
 
 #### Configuration file
 
-The system configuration file is normally located at /etc/controller.conf (or config/controller.conf if running straight from repo and not installed - but note /etc/controller.conf always takes precedence if it exists).  Additionally, an alternative config file can be specified by setting environment variable CONFIG_FILE before calling the scripts - this takes precedence over both defaults.  Full details of each key can be found in the comments within the [sample config file](config/controller.conf) provided.
+The system configuration file is normally located at _/etc/controller.conf_ (or [_config/controller.conf_](config/controller.conf) if running straight from repo and not installed - but note _/etc/controller.conf_ always takes precedence if it exists).  Additionally, an alternative config file can be specified by setting environment variable _CONFIG_FILE_ before calling the scripts - this takes precedence over both defaults.  Full details of each key can be found in the comments within the [sample config file](config/controller.conf) provided.
 
 - "Path settings" contains paths to the various files and directories required by the controller.  These are set up by the installer automatically, and do no normally need to be changed (unless using multi-channel control outputs)
 - "GPIO pins" specifies the output pins to be used for output demand signal, and optional feedback input to confirm demand has been changed.  These can be left at default for the example schematic
