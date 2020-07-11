@@ -13,7 +13,7 @@ This project is the basis of the system that has been controlling the central he
 
 ## Quick start guide
 
-### Install and run as a service
+#### Install and run as a service
 
 - Prepare [hardware](#hardware)
 - Clone git repo and run [installer](install.sh) (must be run from repo root directory)
@@ -32,7 +32,7 @@ sudo ./install.sh
 - Note installer will update apt repos and install required dependencies
 - View outputs in _ll /var/log/temperature-controller_
 
-### Run direct from repo (manual)
+#### Run direct from repo (manual)
 
 - Clone git repo
 - Ensure dependencies are installed (See [Requirements](#requirements), and user is in groups 'video' and 'gpio'
@@ -61,9 +61,23 @@ sudo ./install.sh
 
 Before designing or building any hardware, read the [safety information](#important-safety-information).
 
-The schematics in the [hardware](hardware) section includes an example project using a simulated heating system which employs an LED colocated with one of the temperature sensors to act as a heat source, thereby allowing the temperature controller functionality to be tested and demonstrated using a simple and easy to build breadboard circuit.  A [parts list](hardware/raspi-temperature-controller-breadboard_Simulation_Demo_Circuit_Parts_List.ods), [schematic](hardware/raspi-temperature-controller-breadboard_Simulation_Demo_Circuit_Schematic.pdf) and photos of this breadboard circuit can all be found in the hardware section.  Simply obtain the parts on the parts list, build up the circuit as per the schematic and photos on a breadboard and plug in to a Raspberry Pi, and the system is ready to use as per the [quick start guide](#quick-start-guide).
+The schematics in the [hardware](hardware) section includes an example project using a simulated heating system which employs an LED colocated with one of the temperature sensors to act as a heat source, thereby allowing the temperature controller functionality to be tested and demonstrated using a simple and easy to build breadboard circuit.  A [parts list](hardware/raspi-temperature-controller-breadboard_Simulation_Demo_Circuit_Parts_List.ods), [schematic](hardware/raspi-temperature-controller-breadboard_Simulation_Demo_Circuit_Schematic.pdf) and photos of this breadboard circuit can are all provided.  Simply obtain the parts on the parts list, build up the circuit as per the schematic and photos on a breadboard and plug in to a Raspberry Pi, and the system is ready to use as per the [quick start guide](#quick-start-guide).
 
 [![Breadboard view 1](hardware/raspi-temperature-controller-breadboard-1_small.jpg)](hardware/raspi-temperature-controller-breadboard-1.jpg) [![Breadboard view 2](hardware/raspi-temperature-controller-breadboard-2_small.jpg)](hardware/raspi-temperature-controller-breadboard-2.jpg) [![Breadboard view 3](hardware/raspi-temperature-controller-breadboard-side-1_small.jpg)](hardware/raspi-temperature-controller-breadboard-side-1.jpg) [![Breadboard view 4](hardware/raspi-temperature-controller-breadboard-2_small.jpg)](hardware/raspi-temperature-controller-breadboard-2.jpg)
+
+#### Circuit description
+
+The circuit uses a single 1-wire bus with as many temperature sensors as required for inputs.  The 1-wire sensors are open drain, so that multiple devices can share the same bus and all be able to communicate, and so a pull-up resistor (R1) is required.  Each 1-wire temperature sensor has a unique ID hard-coded into during manufacture so that they can be identified and individually read.
+
+The output GPIOs from the raspberry Pi cannot drive a relay directly, therefore a relay driver (IC1) is used.  A discrete transistor may also be used for this purpose, but the relay driver is convenient as it provides 8x channels in a single package, and includes "flyback" diodes to protect the transistors from back EMF produced by the relay coil during switching events.
+
+The heating load is simulated by an LED (LED1) run at absolute max forward current (I<sub>F</sub>) of 25 mA.  This is set by current limiting resistor (R2) - since the LED has a forward voltage (V<sub>F</sub>) of 2.5 V, the supply voltage is 5 V and R2 is 100 Ohm, V = IR:
+ - I<sub>F</sub> = V / R = (5 - 2.5) / 100 = 2.5 / 100 = 25 mA
+Both the LED (LED1) and the resistor (R2) itself dissipate power P = I<sup>2</sup>R:
+- P = I<sup>2</sup>R = 0.025 * 0.025 * 100 = 0.0625 W
+Therefore R2 rated at 0.25 W provides sufficient safety margin to prevent the resistor running excessively hot.
+
+#### Practical implementations
 
 *** Schematics  more general with DT relay for feedback, multiple relays/temperature sensor with dashed lines "..." and separate relay supply rail + photos DIN rail heating controller
 
@@ -83,7 +97,7 @@ Note aliases _s_, _g_, _a_, _s3_ require a login shell in order to work.
 
 Note the controller uses UTC throughout for all timestamps, and it is assumed OS timezone is UTC. Although internally controller uses UTC in all logs and outputs, OS features such as cron will of course depend on configured OS timezone. OS timezone can be set to UTC using _sudo timedatectl set-timezone UTC_
 
-### Control strategy
+#### Control strategy
 
 The controller itself can be found at _scripts/control_temp.py_ and details of input arguments can be found by running _scripts/control_temp.py -h_. The basic control strategy is running control cycles which can be triggered manually or in continuous mode will be run repeatedly with a specified wait interval in seconds between cycles. Each cycle, temperature will be read from all available/configured sensors, and the setpoint and control temperature sensor measurement are compared. If a list of sensor IDs is supplied, the first on the list will be used as the control sensor.
 
@@ -91,7 +105,7 @@ In heating mode (default), if the control sensor temperature is greater than or 
 
 Note concept of hysteresis is fundamental to a binary control system such as this, since it prevents instability and frequent unecessary switching of the load caused by fluctuations in or accuracy of the measured temperature value, and ensures a "clean" switch on and switch off.  Too frequent switching or an excessive number of switching cycles may ultimately damage the heating or cooling system under control.
 
-### Configuration file
+#### Configuration file
 
 The system configuration file is normally located at /etc/controller.conf (or config/controller.conf if running straight from repo and not installed - but note /etc/controller.conf always takes precedence if it exists).  Additionally, an alternative config file can be specified by setting environment variable CONFIG_FILE before calling the scripts - this takes precedence over both defaults.  Full details of each key can be found in the comments within the [sample config file](config/controller.conf) provided.
 
@@ -102,7 +116,7 @@ The system configuration file is normally located at /etc/controller.conf (or co
 - "Options for log analysis" sets the date range over which log analysis is carried out for the daily controller data and plots. These dates can be input in any format that can be understood by GNU _date_ (e.g. "3 weeks ago") and should be enclosed in quotes "".  The default settings should analyse the entire logfile.  Note analysis is in whole days so must start and end on a midnight crossing.
 - "AWS settings" - Enable / configure AWS S3 sync - see above in "Software" section
 
-### Multi-channel control
+#### Multi-channel control
 
 The hardware described includes an 8-channel relay driver, therefore by connecting multiple GPIO outputs to this IC in the same way as the single channel example it is possible to enable up to 8 control channels. In fact the controller is scalable to as many output channels as there are free GPIO pins. Multiple temperature input channels can easily be read since all sensors are on a common bus. Any available temperature sensor may be used to control any output channel. Each output channel is controlled by a separate instance of the controller software. An example schematic showing multi-channel control is shown [here](hardware/raspi-temperature-controller_Full-General_Variants_Schematic.pdf). To enable an additional control channel in software:
 
