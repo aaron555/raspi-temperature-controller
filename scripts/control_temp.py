@@ -269,7 +269,7 @@ while True:
       # In continuous mode, wait for next cycle and try again
       try:
         # Note for controller analyse must contain exact string "Switching system off"
-        format_print("Switching system off and wating for retry next cycle")
+        format_print("Switching system off and waiting for retry next cycle")
         set_gpio(gpio_output,"0")
         sleep(cycle_interval)
       except KeyboardInterrupt:
