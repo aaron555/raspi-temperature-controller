@@ -55,13 +55,13 @@ Example outputs can be found in [examples](examples)
 
 Temperature data is stored by default in a CSV file containing the setpoint and measurements from all configured temperature sensors, together with demand status. [an example file can be found here.](examples/temperature_data.csv) The file includes Excel-friendly date/timestamps to make plotting data easy:
 
-[![Data log snippet/long plot](examples/raspi-temperature-controller-example-temperature-plot_small.png)](examples/raspi-temperature-controller-example-temperature-plot.png)[![Medium length plot](examples/raspi-temperature-controller-example-temperature-plot-zoom_small.png)](raspi-temperature-controller-example-temperature-plot-zoom.png)[![Short plot](examples/raspi-temperature-controller-example-temperature-plot-zoom2_small.png)](examples/raspi-temperature-controller-example-temperature-plot-zoom2.png)
+[![Data log snippet/long plot](examples/raspi-temperature-controller-example-temperature-plot_small.png)](examples/raspi-temperature-controller-example-temperature-plot.png)[![Medium length plot](examples/raspi-temperature-controller-example-temperature-plot-zoom_small.png)](examples/raspi-temperature-controller-example-temperature-plot-zoom.png)[![Short plot](examples/raspi-temperature-controller-example-temperature-plot-zoom2_small.png)](examples/raspi-temperature-controller-example-temperature-plot-zoom2.png)
 
 In plots of temperature data as shown above, zoomed in plots show how the control sensor temperature closely follows the setpoint, with small variations due to hysteresis.  The individual switching events can also be seen in the demand signal.  Looking over longer timescales, it can be seen that again the control temperature closely following the changing setpoint, except when the setpoint is well below temperature, in which case the system is simply always off.  It can also be seen that during periods of time where ambient temperature is higher, the system stays off for several days.
 
 The controller logfile (a snippet of which is shown below, and an [example can be found here](examples/control_temp.log)) stores a record of setpoint changes, switching events and any errors or warnings.  The _analyse_ function or _a_ command produces daily summary of controller behaviour, by analysing the controller logfile.  The analysis outputs are [a CSV with daily controller use in % and hours](examples/controller_analysis.csv) and plots showing daily demand in hours:
 
-[!Example bar chart](examples/controller_log_plot_bar.png) [!Example line chart](examples/controller_log_plot.png) [![Controller log snippet](examples/raspi-temperature-controller-control_temp-log_small.png)](examples/raspi-temperature-controller-control_temp-log.png)
+![Example bar chart](examples/controller_log_plot_bar.png) ![Example line chart](examples/controller_log_plot.png) [![Controller log snippet](examples/raspi-temperature-controller-control_temp-log_small.png)](examples/raspi-temperature-controller-control_temp-log.png)
 
 Example outputs in AWS S3 from the S3 sync function of the system can be found at http://raspi-cloud-public.s3-website.eu-west-2.amazonaws.com/
 
