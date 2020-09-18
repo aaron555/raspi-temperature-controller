@@ -175,6 +175,8 @@ parser.add_argument('--messagelog', '-m', type=str, metavar='FILENAME',
   help='Full path and filename of optional output logfile for controller messages - if not specified messages sent to STDOUT only (string)')
 parser.add_argument('--interval', '-i', type=float, metavar='SECONDS',
   help='Interval between control cycle (s) - specify to enable continuous mode - default: run once and exit')
+parser.add_argument('--display', '-d', action='store_true',
+  help='Enable LED display - if this flag is set the controller will update seven-segment LED display with setpoint and control sensor temperature')
 parser.add_argument('--verbose', '-v', action='store_true',
   help='Verbose mode - if this flag is set additional messages of control process sent to STDOUT - useful for debugging')
 args = parser.parse_args()
@@ -335,6 +337,11 @@ while True:
         f.write("%s,%s,%s,%s\n" % (strftime("%Y-%m-%d %H:%M:%S", gmtime()), setpoint, ','.join(map(str, current_temps)), actual_status))
   except:
     format_print("WARNING: Cannot open / write to logfile "+logfile_fullpath+" - check filename is correct and permissions?")
+
+  # Update LED display
+  if args.display:
+    os.system("python3 /opt/scripts/temperature-controller/update_display.py "+str(setpoint)+" "+str(current_temp))
+    # *** to-do - make update_display module, import in python not run from os.system, remove hard-coded path;  run in separate process and do not wait for completion to continue
 
   # Check if one-shot mode or continuous - if interval argument is set use continuous
   if cycle_interval:

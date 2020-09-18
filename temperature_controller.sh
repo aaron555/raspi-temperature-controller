@@ -149,6 +149,8 @@ elif [[ "${1,,}" = "control" ]]; then
   if [[ ! -z ${CONTROLLER_LOGFILE} ]]; then
     ARG_STRING+=" -m ${CONTROLLER_LOGFILE}"
   fi
+  # *** to-do base on new config key for display, not permanently enabled
+  ARG_STRING+=" -d"
   if [[ ${2,,} = "continuous" ]] && [[ ! -z ${INTERVAL} ]]; then
     ARG_STRING+=" -i ${INTERVAL}"
     # In continuous mode, need to catch CTRL-C and switch off GPIO
