@@ -342,7 +342,7 @@ while True:
   if args.display:
     os.system("python3 /opt/scripts/temperature-controller/update_display.py "+str(setpoint)+" "+str(current_temp))
     # *** to-do - make update_display module, import in python not run from os.system, remove hard-coded path;  run in separate process and do not wait for completion to continue
-
+    # *** ideally this could be listener process permanently running with modules loaded and monitoring UP/DOWN buttons (GPIO interrupt) and setpoint file and automatically updating display, plus can be called from this script and get status to update actual in more timely fashion (not running full script with module load and initialisation each time)
   # Check if one-shot mode or continuous - if interval argument is set use continuous
   if cycle_interval:
       try:
