@@ -1,0 +1,16 @@
+[Unit]
+Description=Simple Rasperry Pi Temperature Controller - Manage HMI
+After=local-fs.target multi-user.target
+
+[Service]
+ExecStart=/opt/scripts/temperature-controller/manage_hmi.py /etc/controller-setpoints/%I
+Restart=on-failure
+Restart=always
+RestartSec=10
+User=tempctl
+Group=tempctl
+UMask=0002
+
+[Install]
+Alias=temperature-controller-display.service
+WantedBy=multi-user.target
