@@ -67,7 +67,7 @@ if [ "$#" -eq 0 ]; then
 fi
 
 # If setpoint is specified, check it's a valid float
-re='^[0-9]+([.][0-9]+)?$'
+re='^[-+]?[0-9]+([.][0-9]+)?$'
 if ! [[ "${1}" =~ $re ]] ; then
   echo "ERROR: Setpoint must be a number" >&2; exit 1
 fi
