@@ -2,6 +2,8 @@
 
 import sys
 
+# Proof-of-concept to write to LED display - not used in final controller
+
 # Process and check input arguments
 if len(sys.argv) < 3:
   print("ERROR: Specify 2 numeric arguments, first setpoint, second current temperature")
