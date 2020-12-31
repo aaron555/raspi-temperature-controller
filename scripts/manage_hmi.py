@@ -29,55 +29,45 @@ GPIO.setup(GPIO_UP, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 GPIO.setup(GPIO_DOWN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
 # Define threaded callback functions to run when button press event occurs
-def up_callback(channel):
-  # *** To-do make single function for both up and down callbacks (with arguments GPIO and inc value - +0.5 or -0.5)
-  # *** To-do These threads should run so they fully complete before next int is handled - ignore both buttons during this time!
+def button_callback(channel):
+  # *** To-do These threads should run so they fully complete before next int is handled - ignore both buttons during this time - note this currently defeats both buttons to reset
   # *** To-do - pause observers to prevent multiple display updates, and observer interrupting while button held
-  print("DEBUG: Rising edge detected on GPIO UP+")
-  # *** To-do wait to see if button pressed or held -  update display in steps but don't write to file yet - OR if both buttons held reset to (e.g.) 25 C
-  if GPIO.input(GPIO_UP) == 1 and GPIO.input(GPIO_DOWN) ==1:
+  print("DEBUG: Rising edge detected on GPIO "+str(channel))
+  print(GPIO.input(GPIO_UP),GPIO.input(GPIO_DOWN))
+  if GPIO.input(GPIO_UP) == 1 and GPIO.input(GPIO_DOWN) == 1:
     # Reset temperature if both buttons pressed
     new_setpoint = RESET_TEMP
     display_setpoint = LED_value(new_setpoint)
     if display_setpoint != 99999:
       update_display(display_setpoint,"")
   else:
-    # Read old setpoint and increment by 0.5 C
+    # Handle UP or DOWN request if single button pressed
+    if channel == GPIO_UP:
+      GPIO_PUSHED = GPIO_UP
+      TEMP_INC = 0.5
+    elif channel == GPIO_DOWN:
+      GPIO_PUSHED = GPIO_DOWN
+      TEMP_INC = -0.5
+    else:
+      # Should never get to this case
+      return None
     with open("/etc/controller-setpoints/setpoint", "r") as f:
       old_setpoint = float(f.readline().strip())
-      new_setpoint = old_setpoint + 0.5
+      new_setpoint = old_setpoint + TEMP_INC
       display_setpoint = LED_value(new_setpoint)
       if display_setpoint != 99999:
         update_display(display_setpoint,"")
-  # Check if button(s) pressed or held
-  if GPIO.input(GPIO_UP) == 1:
-    while GPIO.input(GPIO_UP) == 1 and new_setpoint <= 9999:
-      time.sleep(0.5)
-      if GPIO.input(GPIO_UP) == 1:
-        new_setpoint = new_setpoint + 0.5
-        display_setpoint = LED_value(new_setpoint)
-        if display_setpoint != 99999:
-          update_display(display_setpoint,"")
-  # Update Stored setpoint in file for use by controller
-  update_cmd = "/opt/scripts/temperature-controller/temperature_controller.sh set {}".format(new_setpoint)
-  # *** BUG - ensure multiple button presses are handled correctly - probably need to handle multiple button presses together - sometimes setpoint in file can differ from controller value after multiple presses / controller restarts
-  os.system(update_cmd)
-  # *** To-do - restart observers after completion of task here
+    # Check if button held
+    if GPIO.input(GPIO_PUSHED) == 1:
+      while GPIO.input(GPIO_PUSHED) == 1 and new_setpoint <= 9999 and new_setpoint >= -999:
+        time.sleep(0.5)
+        if GPIO.input(GPIO_PUSHED) == 1:
+          # Button held foe 0.5 s - keep incrementing
+          new_setpoint = new_setpoint + TEMP_INC
+          display_setpoint = LED_value(new_setpoint)
+          if display_setpoint != 99999:
+            update_display(display_setpoint,"")
 
-def down_callback(channel):
-  # *** To-do make single function for both up and down callbacks (with arguments GPIO and inc value - +0.5 or -0.5) - based on up callback above!
-  # *** To-do - These threads should run so they fully complete before next int is handled - ignore both buttons during this time!
-  # *** To-do - pause observers to prevent multiple display updates
-  print("DEBUG: Rising edge detected on DOWN-")
-  # *** To-do wait to see if button pressed or held - if so update display in steps but don't write to file yet - OR if both buttons held reset to (e.g.) 25 C
-  # Read setpoint and decrement 0.5 C
-  with open("/etc/controller-setpoints/setpoint", "r") as f:
-    old_setpoint = float(f.readline().strip())
-  new_setpoint = old_setpoint - 0.5
-  # Update display
-  display_setpoint = LED_value(new_setpoint)
-  if display_setpoint != 99999:
-    update_display(display_setpoint,"")
   # Update Stored setpoint in file for use by controller
   update_cmd = "/opt/scripts/temperature-controller/temperature_controller.sh set {}".format(new_setpoint)
   # *** BUG - ensure multiple button presses are handled correctly - probably need to handle multiple button presses together - sometimes setpoint in file can differ from controller value after multiple presses / controller restarts
@@ -103,6 +93,7 @@ def LED_value(raw_value):
   while len(processed_value) < 5:
     processed_value+="0"
     # As long as number contains dp this won't alter value
+  #print(processed_value)
   return processed_value
 
 # Update LED display - optional arguments to specify setpoint and current (actual), else reads from files
@@ -133,6 +124,7 @@ def update_display(setpoint,current):
       current = ""
   # Write values to display
   seg.text = ""
+  print(setpoint,current)
   seg.text[1:4] = setpoint
   seg.text[5:8] = current
   # *** handle errors and restart script if cannot update display
@@ -173,8 +165,8 @@ if __name__ == "__main__":
   actual_observer.start()
 
   # Setup monitoring of buttons
-  GPIO.add_event_detect(GPIO_UP, GPIO.RISING, callback=up_callback, bouncetime=300)
-  GPIO.add_event_detect(GPIO_DOWN, GPIO.RISING, callback=down_callback, bouncetime=300)
+  GPIO.add_event_detect(GPIO_UP, GPIO.RISING, callback=button_callback, bouncetime=300)
+  GPIO.add_event_detect(GPIO_DOWN, GPIO.RISING, callback=button_callback, bouncetime=300)
 
   try:
     while True:
