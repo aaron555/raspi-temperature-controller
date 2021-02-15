@@ -15,8 +15,9 @@
 # CHANGELOG
 # 2014 - First Version
 # 06/2020 - Improved error handling and configuration from file, updated config keys, added setpoint and demand
+# 01/2021 - Workaround for kernel v5.10 w1 read issues - retry read from 1-wire sensor if empty response
 
-# Copyright (C) 2014, 2020 Aaron Lockton
+# Copyright (C) 2014, 2020-21 Aaron Lockton
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -71,6 +72,14 @@ scale=1000
 for ii in "${!WIRED_SENSORS[@]}"; do
   if [[ -f "/sys/bus/w1/devices/${WIRED_SENSORS[$ii]}/w1_slave" ]]; then
     tempraw=$(cat "/sys/bus/w1/devices/${WIRED_SENSORS[$ii]}/w1_slave" | grep  -E -o ".{0,0}t=.{0,5}" | cut -c 3-)
+    if [[ -z $tempraw ]]; then
+      # Retry read - note kernel v5.10 frequently appears to give empty response to cat w1_slave on first attempt - workaround
+      tempraw=$(cat "/sys/bus/w1/devices/${WIRED_SENSORS[$ii]}/w1_slave" | grep  -E -o ".{0,0}t=.{0,5}" | cut -c 3-)
+        if [[ -z $tempraw ]]; then
+          echo "ERROR: Cannot read sensor ${WIRED_SENSORS[$ii]}"
+          continue
+        fi
+    fi
     tempscaled=$(round "$tempraw/$scale" 2)
     if [[ -z "${WIRED_SENSOR_LABELS[$ii]}" ]]; then
       # If no label(s) specified use sensor ID
