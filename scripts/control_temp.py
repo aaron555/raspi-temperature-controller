@@ -27,8 +27,9 @@
 # CHANGELOG
 # 11/2014 - First Version
 # 06/2020 - Removed hard-coded inputs and changed to arguments, changed default logging to CSV, added python3 compatibility, added optional continuous mode with configurable cycle interval, added support for multiple temperature sensors, added support for coolers
+# 01/2021 - Workaround for kernel v5.10 w1 read issues - retry read from 1-wire sensor if empty response
 
-# Copyright (C) 2014, 2020 Aaron Lockton
+# Copyright (C) 2014, 2020-21 Aaron Lockton
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -259,8 +260,10 @@ while True:
   for temp_sensor in temp_sensors:
     current_temps.append(get_temp('/sys/bus/w1/devices/'+temp_sensor+'/w1_slave'))
     if current_temps[-1] == None:
-      format_print("WARNING: Cannot get current temperature from sensor "+temp_sensor+" - check 1-wire driver enabled, sensor is connected correctly and (if set) --sensorid is correct")
-      current_temps[-1] = ""
+      current_temps[-1] = get_temp('/sys/bus/w1/devices/'+temp_sensor+'/w1_slave')
+      if current_temps[-1] == None:
+        format_print("WARNING: Cannot get current temperature from sensor "+temp_sensor+" - check 1-wire driver enabled, sensor is connected correctly and (if set) --sensorid is correct")
+        current_temps[-1] = ""
   format_print("Current Temperature(s): "+''.join(str(current_temps)), "verbose")
   # If multiple sensors, note first sensor specified is always used for control
   current_temp = current_temps[0]
