@@ -215,25 +215,25 @@ if status_list[-1] == "-1":
   for line in status_list[ii+1:]:
     status_list[index] = status_end_analysis
     index += 1
-# # If first day(s) in analysis have no data in log, pad with known start status
-# first_status_change_line = raw_log[indices[0]]
-# # Inverted logic here - if first line is switching on, then assume off in all time before log
-# if "Switching system on" in first_status_change_line:
-#   status_start_analysis = 0
-# elif "Switching system off" in first_status_change_line:
-#   status_start_analysis = 1
-# else:
-#   print("ERROR: invalid first switching line: " + first_status_change_line)
-#   sys.exit(1)
-# if status_list[0] == "-1":
-#   index = 0
-#   for line in status_list:
-#     if line == "-1":
-#       status_list[index] = status_start_analysis
-#     else:
-#       break
-#     index += 1
-# print(status_list)
+# If first day(s) in analysis have no data in log, pad with known start status
+first_status_change_line = raw_log[indices[0]]
+# Inverted logic here - if first line is switching on, then assume off in all time before log
+if "Switching system on" in first_status_change_line:
+   status_start_analysis = 0
+elif "Switching system off" in first_status_change_line:
+   status_start_analysis = 1
+else:
+  print("ERROR: invalid first switching line: " + first_status_change_line)
+  sys.exit(1)
+if status_list[0] == "-1":
+  index = 0
+  for line in status_list:
+    if line == "-1":
+      status_list[index] = status_start_analysis
+    else:
+      break
+    index += 1
+#print(status_list)
 
 # Step through days, reading log lines and calculating time on each day
 counter = 0
@@ -254,6 +254,7 @@ for line in datestamps:
           line_time = calendar.timegm(time.strptime(line[0:19], "%Y-%m-%d-%H-%M-%S"))
         except ValueError:
           # Line does not contain valid data - ignore it
+          # print("WARNING: Line does not contain valid data "+line)
           continue
       if "Switching system on" in line and current_status == 0:
         current_status = 1
@@ -263,7 +264,7 @@ for line in datestamps:
         todays_total += line_time - last_on
     if current_status != status_list[counter+1]:
       print("ERROR! inconsistency between status from log lines and expected midnight status!")
-      print(current_status, status_list[counter+1], last_on, todays_total)
+      print(line_time, current_status, last_on, status_list[counter+1], todays_total)
     if current_status == 1:
       todays_total += timestamps[counter+1] - last_on
     time_on.append(todays_total)
